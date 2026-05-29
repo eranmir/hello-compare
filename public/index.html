@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloTickets Admin</title>
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --card: #ffffff;
+            --primary: #2b6cb0;
+            --primary-dark: #1e4e8c;
+            --success: #2f855a;
+            --danger: #c53030;
+            --warning: #d69e2e;
+            --border: #e2e8f0;
+            --text: #2d3748;
+            --muted: #718096;
+        }
+
+        body {
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 26px;
+        }
+
+        h2 {
+            margin-top: 30px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.05s ease;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input, select {
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background: #edf2f7;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f9fafb;
+        }
+
+        .match-header td {
+            background: #e9eef5;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .match-header:hover td {
+            background: #dee7f2;
+        }
+
+        .loading-progress {
+            margin: 10px 0 14px 0;
+            display: none;
+        }
+        .loading-progress.visible {
+            display: block;
+        }
+        .loading-progress .progress-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.2s ease;
+            width: 0%;
+        }
+
+        .row-no-competition td {
+            background: #FFD54E; /* light yellow - no competition */
+        }
+
+        .row-no-competition:hover td {
+            background: #fff3cc;
+        }
+
+        .row-min-missing td {
+            background: #ffe5e5; /* light red */
+        }
+
+        .row-min-missing:hover td {
+            background: #ffd6d6;
+        }
+
+        .row-min-higher td {
+            background: #e6f0ff; /* light blue */
+        }
+
+        .row-min-higher:hover td {
+            background: #d6e6ff;
+        }
+
+        .match-header.match-has-missing td {
+            background: #ffe8f1; /* light pink */
+        }
+
+        .match-header.match-has-missing:hover td {
+            background: #ffd9e8;
+        }
+
+        .match-header.match-has-higher td {
+            background: #e6f0ff; /* light blue */
+        }
+
+        .match-header.match-has-higher:hover td {
+            background: #d6e6ff;
+        }
+
+        .match-header.match-has-both td {
+            background: #ffe5e5; /* light red */
+        }
+
+        .match-header.match-has-both:hover td {
+            background: #ffd6d6;
+        }
+
+        .hidden-row {
+            display: none;
+        }
+
+        .bot-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .bot-toggle input {
+            accent-color: var(--success);
+            cursor: pointer;
+        }
+
+        .view-toggle {
+            margin: 15px 0;
+        }
+
+        .view-toggle button {
+            background: #e2e8f0;
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin-right: 6px;
+        }
+
+        .view-toggle button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card);
+            padding: 20px;
+            width: 440px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+        }
+
+        .modal-content label {
+            margin-top: 12px;
+            display: block;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        ul {
+            padding-left: 16px;
+        }
+
+        ul li {
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        pre {
+            background: #1a202c;
+            color: #68d391;
+            padding: 14px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+
+</head>
+<body>
+
+<h1>HelloTickets Admin Panel</h1>
+
+<button onclick="loadAll()">🔄 Refresh</button>
+<h2>➕ Create Listing</h2>
+
+<form id="createListingForm">
+    <input id="performance_id" placeholder="Performance ID" required/>
+    <input id="external_id" placeholder="External ID" required/>
+    <input id="category" placeholder="Category" required/>
+    <input id="section" placeholder="Section" required/>
+    <input id="row" placeholder="Row"/>
+
+    <input id="quantity" type="number" placeholder="Quantity" required/>
+    <input id="unit_price" type="number" placeholder="Unit Price" required/>
+    <input id="face_value" type="number" placeholder="Face Value" value="0"/>
+
+    <input id="in_hand_date" type="date" required/>
+
+    <select id="split_type">
+        <option value="1">None</option>
+        <option value="2">All Together</option>
+        <option value="3">Avoid Leaving One</option>
+        <option value="4">Pairs</option>
+    </select>
+
+    <select id="currency">
+        <option value="USD">USD</option>
+        <option value="EUR">EUR</option>
+        <option value="GBP">GBP</option>
+    </select>
+
+    <button type="submit">Create Listing</button>
+</form>
+
+<hr/>
+<section style="margin-bottom: 20px;">
+    <h3>🔍 Find Order by ID</h3>
+
+
+    <div class="view-toggle">
+        <button id="ordersBtn" class="active" onclick="showOrders()">Orders</button>
+        <button id="listingsBtn" onclick="showListings()">Listings</button>
+        <button id="lastOrdersBtn" onclick="showLastOrders()">Last Orders</button>
+    </div>
+</section>
+
+<!-- Order Details -->
+<div id="orderDetails" class="hidden">
+    <h3>📄 Order Details</h3>
+    <pre id="orderDetailsPre"></pre>
+</div>
+<div id="lastOrdersView" class="hidden">
+    <h2>📋 Last Orders</h2>
+    <button onclick="loadLastOrders()">Refresh</button>
+    <table id="lastOrdersTable">
+        <thead>
+        <tr>
+            <th>Order ID</th>
+            <th>Event Name</th>
+            <th>Quantity</th>
+            <th>Category</th>
+            <th>Section</th>
+            <th>Order Date</th>
+            <th>Event Date</th>
+            <th>USD per ticket</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="listingsView" class="hidden">
+    <h2>📦 Listings</h2>
+    <button onclick="saveAllListingPrices()">Save All</button>
+    <button onclick="saveAllMinimumPrices()">Save all minimum prices</button>
+    <div id="listingsProgress" class="loading-progress">
+        <div class="progress-label" id="listingsProgressLabel">Loading… page 0</div>
+        <div class="progress-bar"><div class="progress-fill" id="listingsProgressFill"></div></div>
+    </div>
+    <table id="listingsTable">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Category</th>
+            <th>Section</th>
+            <th>Row</th>
+            <th>Qty</th>
+            <th>Price / Ticket</th>
+            <th>Cheapest in section</th>
+            <th>Cheapest in category</th>
+            <th>Min price</th>
+            <th>Bot</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="ordersView">
+    <div id="orderSearchControls">
+        <input
+                type="number"
+                id="orderIdInput"
+                placeholder="Enter order ID"
+                style="width: 200px;"
+        />
+        <button onclick="fetchOrderById()">Fetch Order</button>
+        <button onclick="loadOrders()">Show all orders</button>
+        <button onclick="confirmAllPending()">Confirm All</button>
+        <button id="togglePastOrdersBtn" onclick="togglePastOrders()">Show past events</button>
+    </div>
+    <h2>🧾 Orders</h2>
+    <div id="ordersProgress" class="loading-progress">
+        <div class="progress-label" id="ordersProgressLabel">Loading… page 0</div>
+        <div class="progress-bar"><div class="progress-fill" id="ordersProgressFill"></div></div>
+    </div>
+    <table id="ordersTable">
+        <thead>
+        <tr>
+            <th>Order ID</th>
+            <th>Category</th>
+            <th>Section</th>
+            <th>Qty</th>
+            <th>Price / Ticket</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Confirm</th>
+            <th>Action</th>
+            <th>Upload</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="uploadModal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Upload Tickets</h3>
+
+        <input type="hidden" id="uploadOrderId"/>
+
+        <label>Delivery Type</label>
+        <select id="uploadType" onchange="onUploadTypeChange()">
+            <option value="">Select…</option>
+            <option value="eticket">E-Ticket (PDF / Image)</option>
+            <option value="transfer">Transfer Proof</option>
+            <option value="mobile">Mobile Links</option>
+        </select>
+
+        <!-- E-ticket / Transfer -->
+        <div id="fileUploadSection" class="hidden">
+            <label>Add files</label>
+            <input type="file" id="ticketFiles" multiple onchange="handleFileSelect(event)"/>
+
+            <ul id="fileList"></ul>
+        </div>
+
+        <!-- Mobile links -->
+        <div id="mobileLinksSection" class="hidden">
+            <label>Mobile links</label>
+            <div id="mobileLinksContainer"></div>
+            <button onclick="addMobileLink()">+ Add Link</button>
+        </div>
+
+        <div class="modal-actions">
+            <button onclick="submitUpload()">Upload</button>
+            <button onclick="closeUploadModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    let disabledListings = new Set();
+    let ordersCache = null;
+    let showPastOrders = false;
+    let selectedFiles = [];     // File[]
+    let selectedMobileLinks = []; // { system, url }[]
+
+    async function loadBlacklist() {
+        const res = await fetch("/api/blacklist");
+        const ids = await res.json();
+        disabledListings = new Set(ids.map(String));
+    }
+
+    function renderStatusSelect(orderId, currentStatus) {
+        let options = [];
+
+        switch (currentStatus) {
+            case "pending":
+                options = ["pending", "confirmed", "rejected"];
+                break;
+            case "confirmed":
+                options = ["confirmed", "delivered"];
+                break;
+            case "rejected":
+                options = ["rejected"];
+                break;
+            case "delivered":
+                options = ["delivered"];
+                break;
+            default:
+                options = [currentStatus];
+        }
+
+        const disabled = options.length === 1 ? "disabled" : "";
+
+        return `
+        <select
+            onclick="event.stopPropagation()"
+            onchange="updateStatus(${orderId}, this.value, this)"
+        >            ${options
+            .map(
+                s =>
+                    `<option value="${s}" ${
+                        s === currentStatus ? "selected" : ""
+                    }>${s}</option>`
+            )
+            .join("")}
+        </select>
+    `;
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+
+        for (const file of files) {
+            // avoid exact duplicates
+            if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                selectedFiles.push(file);
+            }
+        }
+
+        e.target.value = ""; // allow re-selecting same file later
+        renderFileList();
+    }
+
+
+    function renderFileList() {
+        const ul = document.getElementById("fileList");
+        ul.innerHTML = "";
+
+        selectedFiles.forEach((file, index) => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+            ${file.name}
+            <button onclick="replaceFile(${index})">Replace</button>
+            <button onclick="removeFile(${index})">❌</button>
+        `;
+            ul.appendChild(li);
+        });
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        renderFileList();
+    }
+
+    function replaceFile(index) {
+        const input = document.createElement("input");
+        input.type = "file";
+
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFiles[index] = file;
+                renderFileList();
+            }
+        };
+
+        input.click();
+    }
+
+    function showOrders() {
+        document.getElementById("ordersView").classList.remove("hidden");
+        document.getElementById("listingsView").classList.add("hidden");
+        document.getElementById("lastOrdersView").classList.add("hidden");
+
+        document.getElementById("ordersBtn").classList.add("active");
+        document.getElementById("listingsBtn").classList.remove("active");
+        document.getElementById("lastOrdersBtn").classList.remove("active");
+    }
+
+    function showListings() {
+        document.getElementById("listingsView").classList.remove("hidden");
+        document.getElementById("ordersView").classList.add("hidden");
+        document.getElementById("lastOrdersView").classList.add("hidden");
+
+        document.getElementById("listingsBtn").classList.add("active");
+        document.getElementById("ordersBtn").classList.remove("active");
+        document.getElementById("lastOrdersBtn").classList.remove("active");
+    }
+
+    function showLastOrders() {
+        document.getElementById("lastOrdersView").classList.remove("hidden");
+        document.getElementById("ordersView").classList.add("hidden");
+        document.getElementById("listingsView").classList.add("hidden");
+
+        document.getElementById("lastOrdersBtn").classList.add("active");
+        document.getElementById("ordersBtn").classList.remove("active");
+        document.getElementById("listingsBtn").classList.remove("active");
+        loadLastOrders();
+    }
+
+    async function fetchOrderById() {
+        const orderId = document.getElementById("orderIdInput").value;
+        if (!orderId) {
+            alert("Please enter an order ID");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/orders/${orderId}`);
+            if (!res.ok) throw new Error("Order not found");
+
+            const data = await res.json();
+
+            renderOrdersTable(data, { applyDateGrouping: false }); // 👈 reuse renderer
+
+        } catch (err) {
+            alert("Failed to fetch order");
+            console.error(err);
+        }
+    }
+
+    async function toggleBot(listingId, enabled) {
+        const url = enabled
+            ? "/api/blacklist/enable"
+            : "/api/blacklist/disable";
+
+        await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ listingId })
+        });
+
+        if (enabled) {
+            disabledListings.delete(String(listingId));
+        } else {
+            disabledListings.add(String(listingId));
+        }
+    }
+
+
+    function renderOrdersTable(data, options = {}) {
+        const applyDateGrouping = options.applyDateGrouping !== false;
+
+        const tbody = document.querySelector("#ordersTable tbody");
+        tbody.innerHTML = "";
+
+        const performances = Object.values(data || {});
+
+        if (!applyDateGrouping) {
+            performances.forEach(performance => {
+                const {
+                    performance_name,
+                    performance_date,
+                    myOrders
+                } = performance;
+
+                const headerRow = document.createElement("tr");
+                headerRow.className = "match-header";
+                headerRow.innerHTML = `
+            <td colspan="10">
+                ▶ ${performance_name} (${performance_date})
+            </td>
+        `;
+                tbody.appendChild(headerRow);
+
+                const rows = [];
+
+                (myOrders || []).forEach(o => {
+                    const c = o.customer_info || {};
+                    const isPending = o.status === "pending";
+                    const confirmCell = isPending
+                        ? `<label><input type="checkbox" class="confirm-pending-cb" data-order-id="${o.id}"/> confirm</label>`
+                        : "";
+
+                    const tr = document.createElement("tr");
+                    tr.style.display = "none";
+                    tr.innerHTML = `
+                <td>${o.id}</td>
+                <td>${o.ticket_group?.category || ""}</td>
+                <td>${o.ticket_group?.section || "---"}</td>
+                <td>${o.tickets_quantity}</td>
+                <td>${(o.price_per_seat / 100).toFixed(2)} ${o.currency}</td>
+                <td>
+                    ${c.user_first_name || ""} ${c.user_last_name || ""}<br>
+                    <small>${c.user_email || ""}</small><br>
+                    <small>${c.user_phone || ""}</small>
+                </td>
+                <td>${o.status}</td>
+                <td>${confirmCell}</td>
+                <td>${renderStatusSelect(o.id, o.status)}</td>
+                <td>
+                    <button
+                        onclick="openUploadModal(${o.id})"
+                        ${o.status !== "confirmed" ? "disabled" : ""}
+                    >
+                        Upload tickets
+                    </button>
+                </td>
+            `;
+                    tbody.appendChild(tr);
+                    rows.push(tr);
+                });
+
+                let expanded = false;
+                headerRow.addEventListener("click", () => {
+                    expanded = !expanded;
+                    rows.forEach(r => r.style.display = expanded ? "table-row" : "none");
+                    headerRow.querySelector("td").textContent =
+                        `${expanded ? "▼" : "▶"} ${performance_name} (${performance_date})`;
+                });
+            });
+
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            const d = new Date(dateStr + "T00:00:00");
+            if (isNaN(d)) return null;
+            d.setHours(0, 0, 0, 0);
+            return d;
+        };
+
+        const future = [];
+        const past = [];
+
+        for (const perf of performances) {
+            const d = parseDate(perf.performance_date);
+            if (!d || d >= today) {
+                future.push({...perf, _dateObj: d});
+            } else {
+                past.push({...perf, _dateObj: d});
+            }
+        }
+
+        future.sort((a, b) => {
+            if (!a._dateObj && !b._dateObj) return 0;
+            if (!a._dateObj) return 1;
+            if (!b._dateObj) return -1;
+            return a._dateObj - b._dateObj;
+        });
+
+        past.sort((a, b) => {
+            if (!a._dateObj && !b._dateObj) return 0;
+            if (!a._dateObj) return 1;
+            if (!b._dateObj) return -1;
+            return a._dateObj - b._dateObj;
+        });
+
+        const ordered = showPastOrders ? [...past, ...future] : [...future];
+
+        ordered.forEach(performance => {
+            const {
+                performance_name,
+                performance_date,
+                myOrders
+            } = performance;
+
+            const headerRow = document.createElement("tr");
+            headerRow.className = "match-header";
+            headerRow.innerHTML = `
+            <td colspan="10">
+                ▶ ${performance_name} (${performance_date})
+            </td>
+        `;
+            tbody.appendChild(headerRow);
+
+            const rows = [];
+
+            (myOrders || []).forEach(o => {
+                const c = o.customer_info || {};
+                const isPending = o.status === "pending";
+                const confirmCell = isPending
+                    ? `<label><input type="checkbox" class="confirm-pending-cb" data-order-id="${o.id}"/> confirm</label>`
+                    : "";
+
+                const tr = document.createElement("tr");
+                tr.style.display = "none";
+                tr.innerHTML = `
+                <td>${o.id}</td>
+                <td>${o.ticket_group?.category || ""}</td>
+                <td>${o.ticket_group?.section || "---"}</td>
+                <td>${o.tickets_quantity}</td>
+                <td>${(o.price_per_seat / 100).toFixed(2)} ${o.currency}</td>
+                <td>
+                    ${c.user_first_name || ""} ${c.user_last_name || ""}<br>
+                    <small>${c.user_email || ""}</small><br>
+                    <small>${c.user_phone || ""}</small>
+                </td>
+                <td>${o.status}</td>
+                <td>${confirmCell}</td>
+                <td>${renderStatusSelect(o.id, o.status)}</td>
+                <td>
+                    <button
+                        onclick="openUploadModal(${o.id})"
+                        ${o.status !== "confirmed" ? "disabled" : ""}
+                    >
+                        Upload tickets
+                    </button>
+                </td>
+            `;
+                tbody.appendChild(tr);
+                rows.push(tr);
+            });
+
+            let expanded = false;
+            headerRow.addEventListener("click", () => {
+                expanded = !expanded;
+                rows.forEach(r => r.style.display = expanded ? "table-row" : "none");
+                headerRow.querySelector("td").textContent =
+                    `${expanded ? "▼" : "▶"} ${performance_name} (${performance_date})`;
+            });
+        });
+    }
+
+
+    function setListingsProgress(visible, percent, label) {
+        const el = document.getElementById("listingsProgress");
+        const fill = document.getElementById("listingsProgressFill");
+        const lbl = document.getElementById("listingsProgressLabel");
+        if (visible) {
+            el.classList.add("visible");
+            fill.style.width = (percent || 0) + "%";
+            if (label != null) lbl.textContent = label;
+        } else {
+            el.classList.remove("visible");
+        }
+    }
+
+    function setOrdersProgress(visible, percent, label) {
+        const el = document.getElementById("ordersProgress");
+        const fill = document.getElementById("ordersProgressFill");
+        const lbl = document.getElementById("ordersProgressLabel");
+        if (visible) {
+            el.classList.add("visible");
+            fill.style.width = (percent || 0) + "%";
+            if (label != null) lbl.textContent = label;
+        } else {
+            el.classList.remove("visible");
+        }
+    }
+
+    function renderListingsTable(data, minimumPrices) {
+        const tbody = document.querySelector("#listingsTable tbody");
+        tbody.innerHTML = "";
+
+        const performances = Object.values(data || {});
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().slice(0, 10); // YYYY-MM-DD
+
+        const future = [];
+        const past = [];
+
+        for (const perf of performances) {
+            const dStr = perf.performance_date || "";
+            if (!dStr || dStr >= yesterdayStr) {
+                future.push({...perf, _dateStr: dStr});
+            } else {
+                past.push({...perf, _dateStr: dStr});
+            }
+        }
+
+        future.sort((a, b) => {
+            if (!a._dateStr && !b._dateStr) return 0;
+            if (!a._dateStr) return 1;
+            if (!b._dateStr) return -1;
+            return a._dateStr.localeCompare(b._dateStr);
+        });
+
+        past.sort((a, b) => {
+            if (!a._dateStr && !b._dateStr) return 0;
+            if (!a._dateStr) return 1;
+            if (!b._dateStr) return -1;
+            return a._dateStr.localeCompare(b._dateStr);
+        });
+
+        const ordered = [...future, ...past];
+
+        ordered.forEach(performance => {
+            const {
+                performance_id,
+                performance_name,
+                performance_date,
+                myListings
+            } = performance;
+
+            // Match title: red only when there are listings WITH relevant competition that have missing/higher min.
+            // Section-specific: "competition" = section competition (cheapest_in_section). Category: cheapest_in_category.
+            function hasRelevantCompetition(l) {
+                const hasSection = (l.section ?? "").toString().trim().length > 0;
+                if (hasSection) {
+                    const sec = l.cheapest_in_section;
+                    return sec != null && sec !== "" && Number.isFinite(Number(sec)) && Number(sec) > 0;
+                }
+                const cat = l.cheapest_in_category ?? l.cheapest_price;
+                return cat != null && cat !== "" && Number.isFinite(Number(cat)) && Number(cat) > 0;
+            }
+            let matchHasMissingMin = false;
+            let matchHasMinHigherThanCheapest = false;
+            (myListings || []).forEach(l => {
+                if (!hasRelevantCompetition(l)) return; // ignore no-competition for match header
+                const rawMin = (minimumPrices && minimumPrices[String(l.id)] != null)
+                    ? minimumPrices[String(l.id)]
+                    : "";
+                const hasMin = rawMin !== "" && rawMin !== null && rawMin !== undefined;
+                if (!hasMin) {
+                    matchHasMissingMin = true;
+                    return;
+                }
+                const minNum = Number(rawMin);
+                if (!Number.isFinite(minNum)) {
+                    matchHasMissingMin = true;
+                    return;
+                }
+                const hasSection = (l.section ?? "").toString().trim().length > 0;
+                const relevantCheapest = hasSection ? (l.cheapest_in_section ?? l.cheapest_in_category) : (l.cheapest_in_category ?? l.cheapest_price);
+                if (relevantCheapest != null && minNum > Number(relevantCheapest)) {
+                    matchHasMinHigherThanCheapest = true;
+                }
+            });
+
+            // --- Match header row ---
+            const headerRow = document.createElement("tr");
+            headerRow.className = "match-header";
+            headerRow.dataset.performanceId = performance_id; // keep for logic if needed
+            headerRow.innerHTML = `
+            <td colspan="11">
+                ▶ ${performance_name} (${performance_date})
+            </td>
+        `;
+            if (matchHasMissingMin && matchHasMinHigherThanCheapest) {
+                headerRow.classList.add("match-has-both");
+            } else if (matchHasMissingMin) {
+                headerRow.classList.add("match-has-missing");
+            } else if (matchHasMinHigherThanCheapest) {
+                headerRow.classList.add("match-has-higher");
+            }
+            tbody.appendChild(headerRow);
+
+            const listingRows = [];
+
+            // --- Listing rows (hidden by default) ---
+            (myListings || []).forEach(l => {
+                const isDisabled = disabledListings.has(String(l.id));
+                const minVal = (minimumPrices && minimumPrices[String(l.id)] != null) ? minimumPrices[String(l.id)] : "";
+                const minNum = minVal === "" ? null : Number(minVal);
+                const hasCompetition = hasRelevantCompetition(l);
+                const hasSection = (l.section ?? "").toString().trim().length > 0;
+                const relevantCheapest = hasSection ? (l.cheapest_in_section ?? l.cheapest_in_category) : (l.cheapest_in_category ?? l.cheapest_price);
+                const relevantCheapestNum = (relevantCheapest == null || relevantCheapest === "") ? null : Number(relevantCheapest);
+
+                const tr = document.createElement("tr");
+                tr.className = "hidden-row";
+                if (!hasCompetition) {
+                    tr.classList.add("row-no-competition"); // light yellow – no section competition (if section) or no category competition
+                } else if (minVal === "" || minNum === null || !Number.isFinite(minNum)) {
+                    tr.classList.add("row-min-missing"); // red – has competition but no min
+                } else if (relevantCheapestNum != null && Number.isFinite(relevantCheapestNum) && minNum > relevantCheapestNum) {
+                    tr.classList.add("row-min-higher"); // blue – min higher than relevant cheapest
+                }
+                tr.innerHTML = `
+        <td>${l.id}</td>
+        <td>${l.category}</td>
+        <td>${l.section}</td>
+        <td>${l.row || ""}</td>
+        <td>${l.available_quantity}</td>
+        <td>
+            <input
+                type="number"
+                min="0"
+                value="${l.price?.unit_price / 100 || 0}"
+                data-original="${l.price?.unit_price / 100 || 0}"
+                id="price-${l.id}"
+                style="width:90px"
+            />
+            ${l.price?.currency}
+        </td>
+        <td>${formatPriceCell(l.cheapest_in_section)}</td>
+        <td>${formatPriceCell(l.cheapest_in_category)}</td>
+        <td>
+            <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Min"
+                value="${minVal}"
+                data-original="${minVal}"
+                id="minprice-${l.id}"
+                style="width:70px"
+            />
+        </td>
+        <td>
+            <label class="bot-toggle">
+                <input
+                    type="checkbox"
+                    ${isDisabled ? "" : "checked"}
+                    onchange="toggleBot(${l.id}, this.checked)"
+                />
+                <span>Bot</span>
+            </label>
+        </td>
+        <td>
+            <button onclick="saveListingPrice(${l.id})">
+                Save
+            </button>
+        </td>
+    `;
+
+                tbody.appendChild(tr);
+                listingRows.push(tr);
+            });
+
+            // --- Expand / collapse ---
+            let expanded = false;
+            headerRow.addEventListener("click", () => {
+                expanded = !expanded;
+
+                listingRows.forEach(row => {
+                    row.style.display = expanded ? "table-row" : "none";
+                });
+
+                headerRow.querySelector("td").textContent =
+                    `${expanded ? "▼" : "▶"} ${performance_name} (${performance_date})`;
+            });
+        });
+    }
+
+    async function loadListings() {
+        await loadBlacklist();
+        setListingsProgress(true, 0, "Loading… page 0");
+
+        const es = new EventSource("/api/listings/stream");
+        es.addEventListener("progress", (e) => {
+            const obj = JSON.parse(e.data);
+            const page = obj.page || 0;
+            const pct = Math.min(90, page * 10);
+            setListingsProgress(true, pct, "Loading… page " + page);
+        });
+        es.addEventListener("done", async (e) => {
+            const obj = JSON.parse(e.data);
+            const data = obj.data || {};
+            setListingsProgress(true, 100, "Processing…");
+            es.close();
+            try {
+                const minPricesRes = await fetch("/api/minimum-prices");
+                const minimumPrices = await minPricesRes.json();
+                renderListingsTable(data, minimumPrices);
+            } finally {
+                setListingsProgress(false);
+            }
+        });
+        es.addEventListener("servererror", (e) => {
+            es.close();
+            setListingsProgress(false);
+            try { alert(JSON.parse(e.data).message || "Failed to load listings"); } catch (_) { alert("Failed to load listings"); }
+        });
+        es.onerror = () => { es.close(); setListingsProgress(false); };
+    }
+
+    async function loadOrders() {
+        setOrdersProgress(true, 0, "Loading… page 0");
+
+        const es = new EventSource("/api/orders/stream");
+        es.addEventListener("progress", (e) => {
+            const obj = JSON.parse(e.data);
+            const page = obj.page || 0;
+            const pct = Math.min(90, page * 10);
+            setOrdersProgress(true, pct, "Loading… page " + page);
+        });
+        es.addEventListener("done", (e) => {
+            const obj = JSON.parse(e.data);
+            const data = obj.data || {};
+            setOrdersProgress(true, 100, "Rendering…");
+            es.close();
+            ordersCache = data;
+            renderOrdersTable(data);
+            setOrdersProgress(false);
+        });
+        es.addEventListener("servererror", (e) => {
+            es.close();
+            setOrdersProgress(false);
+            try { alert(JSON.parse(e.data).message || "Failed to load orders"); } catch (_) { alert("Failed to load orders"); }
+        });
+        es.onerror = () => { es.close(); setOrdersProgress(false); };
+    }
+
+    async function loadLastOrders() {
+        try {
+            const res = await fetch("/api/orders/last");
+            if (!res.ok) throw new Error("Failed to fetch");
+            const list = await res.json();
+            const tbody = document.querySelector("#lastOrdersTable tbody");
+            tbody.innerHTML = "";
+            (list || []).forEach((row) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row.orderId}</td>
+                    <td>${escapeHtml(row.eventName)}</td>
+                    <td>${row.quantity}</td>
+                    <td>${escapeHtml(row.category)}</td>
+                    <td>${escapeHtml(row.section)}</td>
+                    <td>${row.orderDate}</td>
+                    <td>${row.eventDate}</td>
+                    <td>${row.usdPerTicket}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error(err);
+            alert("Failed to load last orders");
+        }
+    }
+
+    function formatPriceCell(value) {
+        if (value != null && Number.isFinite(Number(value))) {
+            return Number(value).toFixed(2);
+        }
+        return "";
+    }
+
+    function escapeHtml(text) {
+        if (text == null) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function openUploadModal(orderId) {
+        // defensive guard (in case someone bypasses disabled button)
+        /*const order = ordersById?.[orderId];
+        if (order && order.status !== "confirmed") {
+            alert("Tickets can only be uploaded for CONFIRMED orders");
+            return;
+        }*/
+
+        document.getElementById("uploadOrderId").value = orderId;
+        document.getElementById("uploadModal").classList.remove("hidden");
+
+        document.getElementById("uploadType").value = "";
+        document.getElementById("fileUploadSection").classList.add("hidden");
+        document.getElementById("mobileLinksSection").classList.add("hidden");
+
+        selectedFiles = [];
+        selectedMobileLinks = [];
+
+        renderFileList();
+        renderMobileLinks();
+    }
+
+
+    function closeUploadModal() {
+        document.getElementById("uploadModal").classList.add("hidden");
+    }
+
+    function onUploadTypeChange() {
+        const type = document.getElementById("uploadType").value;
+
+        document.getElementById("fileUploadSection").classList.add("hidden");
+        document.getElementById("mobileLinksSection").classList.add("hidden");
+
+        if (type === "eticket" || type === "transfer") {
+            document.getElementById("fileUploadSection").classList.remove("hidden");
+        }
+
+        if (type === "mobile") {
+            document.getElementById("mobileLinksSection").classList.remove("hidden");
+            if (!selectedMobileLinks.length) addMobileLink();
+        }
+    }
+
+
+    function addMobileLink(system = "all", url = "") {
+        selectedMobileLinks.push({system, url});
+        renderMobileLinks();
+    }
+
+    function renderMobileLinks() {
+        const container = document.getElementById("mobileLinksContainer");
+        container.innerHTML = "";
+
+        selectedMobileLinks.forEach((link, index) => {
+            const div = document.createElement("div");
+            div.innerHTML = `
+            <select onchange="updateMobileSystem(${index}, this.value)">
+                <option value="all" ${link.system === "all" ? "selected" : ""}>All</option>
+                <option value="ios" ${link.system === "ios" ? "selected" : ""}>iOS</option>
+                <option value="android" ${link.system === "android" ? "selected" : ""}>Android</option>
+            </select>
+
+            <input type="text"
+                   value="${link.url}"
+                   placeholder="https://…"
+                   oninput="updateMobileUrl(${index}, this.value)" />
+
+            <button onclick="removeMobileLink(${index})">❌</button>
+        `;
+            container.appendChild(div);
+        });
+    }
+
+    function updateMobileSystem(index, value) {
+        selectedMobileLinks[index].system = value;
+    }
+
+    function updateMobileUrl(index, value) {
+        selectedMobileLinks[index].url = value;
+    }
+
+    function removeMobileLink(index) {
+        selectedMobileLinks.splice(index, 1);
+        renderMobileLinks();
+    }
+
+
+    async function submitUpload() {
+        const orderId = document.getElementById("uploadOrderId").value;
+        const type = document.getElementById("uploadType").value;
+
+        const formData = new FormData();
+        formData.append("type", type);
+
+        if (type === "mobile") {
+            const mobileLinksSets = [selectedMobileLinks];
+            formData.append(
+                "mobileLinks",
+                JSON.stringify(mobileLinksSets)
+            );
+        }
+
+        if (type === "eticket" || type === "transfer") {
+            selectedFiles.forEach(f => formData.append("files", f));
+        }
+
+        if (type === "transfer") {
+            //const url = document.getElementById("transferUrlInput").value;
+            const url = "https://liveeventhospo.com/"
+            formData.append("transferUrl", url);
+        }
+
+        const res = await fetch(`/api/orders/${orderId}/upload`, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!res.ok) {
+            alert("Upload failed");
+            return;
+        }
+
+        alert("Tickets uploaded successfully");
+        closeUploadModal();
+    }
+
+
+    async function saveListingPrice(listingId) {
+        const input = document.getElementById(`price-${listingId}`);
+        const newPrice = Number(input.value);
+
+        if (!newPrice || newPrice <= 0) {
+            alert("Invalid price");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/listings/${listingId}/price`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({newPrice})
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to update price");
+            }
+
+            // Optional UX feedback
+            input.style.background = "#d4edda";
+            input.dataset.original = String(newPrice);
+            setTimeout(() => (input.style.background = ""), 800);
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to update price");
+        }
+    }
+
+    async function saveAllListingPrices() {
+        const inputs = document.querySelectorAll('input[id^="price-"]');
+        const toSave = [];
+        for (const input of inputs) {
+            const listingId = input.id.replace("price-", "");
+            const newPrice = Number(input.value);
+            const original = Number(input.dataset.original || 0);
+            if (newPrice !== original) {
+                if (!newPrice || newPrice <= 0) {
+                    alert(`Invalid price for listing ${listingId}`);
+                    return;
+                }
+                toSave.push({ listingId, input, newPrice });
+            }
+        }
+        if (toSave.length === 0) {
+            alert("No changed prices to save");
+            return;
+        }
+        try {
+            const res = await fetch("/api/listings/prices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    updates: toSave.map(({ listingId, newPrice }) => ({ listingId, newPrice }))
+                })
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            const data = await res.json();
+            const saved = data.saved ?? 0;
+            const failed = data.failed ?? 0;
+            const failedIds = new Set((data.errors || []).map((e) => String(e.listingId)));
+            toSave.forEach(({ listingId, input, newPrice }) => {
+                if (!failedIds.has(String(listingId))) {
+                    input.style.background = "#d4edda";
+                    input.dataset.original = String(newPrice);
+                    setTimeout(() => (input.style.background = ""), 800);
+                }
+            });
+            alert(`Saved ${saved} price(s)${failed ? `, ${failed} failed` : ""}.`);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save prices");
+        }
+    }
+
+    async function saveAllMinimumPrices() {
+        const inputs = document.querySelectorAll('input[id^="minprice-"]');
+        const updates = {};
+        for (const input of inputs) {
+            const listingId = input.id.replace("minprice-", "");
+            const raw = input.value.trim();
+            const original = (input.dataset.original ?? "").toString().trim();
+            if (raw === original) continue;
+            const num = raw === "" ? null : Number(raw);
+            if (raw !== "" && (!Number.isFinite(num) || num < 0)) {
+                alert(`Invalid minimum price for listing ${listingId}`);
+                return;
+            }
+            updates[listingId] = num;
+        }
+        if (Object.keys(updates).length === 0) {
+            alert("No changed minimum prices to save");
+            return;
+        }
+        try {
+            const res = await fetch("/api/minimum-prices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updates)
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            const data = await res.json();
+            inputs.forEach(input => {
+                const listingId = input.id.replace("minprice-", "");
+                if (listingId in updates) {
+                    const newVal = data[listingId] ?? "";
+                    input.value = newVal;
+                    input.dataset.original = String(newVal);
+                    input.style.background = "#d4edda";
+                    setTimeout(() => (input.style.background = ""), 800);
+                }
+            });
+            alert(`Saved ${Object.keys(updates).length} minimum price(s).`);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save minimum prices");
+        }
+    }
+
+    async function updateStatus(orderId, status, selectEl) {
+        if (!status) return;
+
+        try {
+            const res = await fetch(`/api/orders/${orderId}/status`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status })
+            });
+
+            if (!res.ok) throw new Error("Failed to update");
+
+            alert("Status updated successfully ✅");
+
+            // Update status text cell (column 7 = Status)
+            const row = selectEl.closest("tr");
+            row.querySelector("td:nth-child(7)").textContent = status;
+
+            // Re-render dropdown options (without reloading table)
+            selectEl.outerHTML = renderStatusSelect(orderId, status);
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to update status ❌");
+        }
+    }
+
+    async function confirmAllPending() {
+        const checkboxes = document.querySelectorAll(".confirm-pending-cb:checked");
+        if (!checkboxes.length) {
+            alert("No pending orders selected");
+            return;
+        }
+        const orderIds = Array.from(checkboxes).map(cb => cb.dataset.orderId);
+        const results = await Promise.all(orderIds.map(async (orderId) => {
+            try {
+                const res = await fetch(`/api/orders/${orderId}/status`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "confirmed" })
+                });
+                return res.ok ? { ok: true } : { ok: false };
+            } catch (err) {
+                console.error(err);
+                return { ok: false };
+            }
+        }));
+        const done = results.filter(r => r.ok).length;
+        const failed = results.length - done;
+        alert(done === results.length ? `Confirmed ${done} order(s) ✅` : `Confirmed ${done}, ${failed} failed ❌`);
+        loadOrders();
+    }
+
+    function loadAll() {
+        loadListings();
+        loadOrders();
+    }
+
+    function togglePastOrders() {
+        showPastOrders = !showPastOrders;
+        const btn = document.getElementById("togglePastOrdersBtn");
+        if (btn) {
+            btn.textContent = showPastOrders ? "Hide past events" : "Show past events";
+        }
+        if (ordersCache) {
+            renderOrdersTable(ordersCache);
+        }
+    }
+
+    loadAll();
+</script>
+
+</body>
+</html>
