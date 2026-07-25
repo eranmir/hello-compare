@@ -1,5 +1,6 @@
 import axios from "axios";
 import {fileToBase64} from "./GenericUtils.js";
+
 const ENV = process.env.HELLOTICKETS_ENV || "production"; // sandbox | production
 
 const HELLOTICKETS_CONFIG = {
@@ -23,41 +24,41 @@ const {
 
 export async function updateListingPrice(listing, newPrice) {
     try {
-       // if (!listing.section) {
-            newPrice = Math.floor(newPrice);
-            let price = listing.price;
-            price.unit_price = newPrice * 100; // convert to cents
-            let data = {
-                external_id: listing.external_id,
-                attributes: listing.attributes,
-                in_hand_date: listing.in_hand_date,
-                category: listing.category,
-                row: listing.row,
-                available_quantity: listing.available_quantity,
-                split_type: listing.split_type,
-                ticket_access_type: listing.ticket_access_type,
-                ticket_type: listing.ticket_type,
-                listing_owner: listing.listing_owner,
-                performance_id: listing.performance_id,
-                restricted_locales: listing.restricted_locales,
-                has_restricted_view: listing.has_restricted_view,
-                price: price, // convert to cents
-                seats: listing.seats
-            }
+        // if (!listing.section) {
+        newPrice = Math.floor(newPrice);
+        let price = listing.price;
+        price.unit_price = newPrice * 100; // convert to cents
+        let data = {
+            external_id: listing.external_id,
+            attributes: listing.attributes,
+            in_hand_date: listing.in_hand_date,
+            category: listing.category,
+            row: listing.row,
+            available_quantity: listing.available_quantity,
+            split_type: listing.split_type,
+            ticket_access_type: listing.ticket_access_type,
+            ticket_type: listing.ticket_type,
+            listing_owner: listing.listing_owner,
+            performance_id: listing.performance_id,
+            restricted_locales: listing.restricted_locales,
+            has_restricted_view: listing.has_restricted_view,
+            price: price, // convert to cents
+            seats: listing.seats
+        }
 
-            if (listing.section) {
-                data.section = listing.section;
-            }
-            const resp = await axios.put(
-                `${baseUrl}/v1/listings/${listing.id}`,
-                data,
-                {
-                    headers: {
-                        Accept: "application/json",
-                        "x-private-key": privateKey,
-                    }
-                });
-     //   }
+        if (listing.section) {
+            data.section = listing.section;
+        }
+        const resp = await axios.put(
+            `${baseUrl}/v1/listings/${listing.id}`,
+            data,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "x-private-key": privateKey,
+                }
+            });
+        //   }
     } catch (err) {
         console.error(`Error updating listing ${listing.id}:`, err.response?.data || err.message);
     }
@@ -152,9 +153,7 @@ export async function updateOrderInfo(order, type, details) {
                 mobile_links: links
             });
         }
-    }
-
-    else {
+    } else {
         throw new Error("type must be eticket, transfer, or mobile");
     }
 
@@ -228,7 +227,6 @@ export async function getHelloTicketsOrders(onPageLoaded) {
                 "x-public-key": publicKey,
             },
         });
-
         const orders = resp.data?.orders || [];
 
         if (!orders.length) break;
@@ -252,7 +250,7 @@ export async function getHelloTicketsListings(onPageLoaded) {
 
     while (true) {
         const resp = await axios.get(`${baseUrl}/v1/listings`, {
-            params: { page, per_page: perPage },
+            params: {page, per_page: perPage},
             headers: {
                 Accept: "application/json",
                 "x-public-key": publicKey,
@@ -267,7 +265,7 @@ export async function getHelloTicketsListings(onPageLoaded) {
         page++;
     }
 
-    return { ticket_groups: allTicketGroups };
+    return {ticket_groups: allTicketGroups};
 }
 
 export async function getHelloTicketsOrderById(orderId) {

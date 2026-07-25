@@ -6,12 +6,66 @@ import {
     getListingsFromClientSide,
 } from "./GenericUtils.js";
 import {getBlacklistSet} from "./blackListUtils.js";
+import {saveListingsToDB} from "./db.js";
 
 const LISTINGS_SNAPSHOT_FILE = "./listingsSnapshot.json";
 
 const UNDERCUT_AMOUNT = 2;   // USD
 const RAISE_THRESHOLD = 4;   // USD
 const blacklist = await getBlacklistSet();
+
+// Hello prices are USD; the dashboard + minimum floors are GBP. Fetch a live USD→GBP rate.
+const USD_GBP_FALLBACK = 0.79;
+// Competitor prices from the Hello API come in the event's native currency (usually EUR, sometimes
+// GBP) — convert them TO USD so they compare apples-to-apples with our USD listings.
+const EUR_USD_FALLBACK = 1.14;
+const GBP_USD_FALLBACK = 1.27;
+const CURRENCY_TOKENS = [
+    "fca_live_p6pmtee37c8GsrcHAXzaHwPwrmnQOBADjgHop3QQ",
+    "fca_live_8sZ0nxwcSaRnrI1CwRBvqdWPojkhacHx3Oj4hKnE",
+    "fca_live_NHTtPJDfbovwwiPqt6EFGO4wx2pT7BK4KAIcVxAL",
+    "fca_live_TV6LmmUV8gNO1ZAQ2cYLGvBYlpQBFaQ55uDi8Hfw",
+    "fca_live_tIxnPAePGhIezVogsLMu7K2gbtv4jLBiHeSySVfk",
+    "fca_live_yLskjwTWuHgnqnrETf1a6qbabI9vbnHixMmdAXnh",
+];
+
+async function getUsdToGbp() {
+    try {
+        const key = CURRENCY_TOKENS[Math.floor(Math.random() * CURRENCY_TOKENS.length)];
+        const res = await fetch(
+            `https://api.freecurrencyapi.com/v1/latest?apikey=${key}&base_currency=USD&currencies=GBP`
+        );
+        const json = await res.json();
+        const rate = json?.data?.GBP;
+        if (rate && Number.isFinite(rate)) {
+            console.log(`💱 USD→GBP rate: ${rate}`);
+            return rate;
+        }
+    } catch (err) {
+        console.warn("⚠️ Could not fetch USD→GBP rate:", err.message);
+    }
+    console.warn(`⚠️ Using fallback USD→GBP rate ${USD_GBP_FALLBACK}`);
+    return USD_GBP_FALLBACK;
+}
+
+// Live FX multipliers TO USD, keyed by currency code, for converting competitor prices to USD.
+async function getFxToUsd() {
+    const fx = { USD: 1, EUR: EUR_USD_FALLBACK, GBP: GBP_USD_FALLBACK };
+    try {
+        const key = CURRENCY_TOKENS[Math.floor(Math.random() * CURRENCY_TOKENS.length)];
+        const res = await fetch(
+            `https://api.freecurrencyapi.com/v1/latest?apikey=${key}&base_currency=USD&currencies=EUR,GBP`
+        );
+        const json = await res.json();
+        // API gives USD→X; invert to get X→USD.
+        if (json?.data?.EUR && Number.isFinite(json.data.EUR)) fx.EUR = 1 / json.data.EUR;
+        if (json?.data?.GBP && Number.isFinite(json.data.GBP)) fx.GBP = 1 / json.data.GBP;
+        console.log(`💱 EUR→USD: ${fx.EUR.toFixed(4)} | GBP→USD: ${fx.GBP.toFixed(4)}`);
+    } catch (err) {
+        console.warn("⚠️ Could not fetch FX→USD rates, using fallbacks:", err.message);
+    }
+    return fx;
+}
 
 function normalize(str = "") {
     return str
@@ -172,15 +226,18 @@ function getEffectiveSplits(listing) {
 }
 
 function quantityMatches(myQty, listing) {
-    // singles compare to everything
-    if (myQty === 1) return true;
-
     const splits = getEffectiveSplits(listing);
 
     if (!splits.length) return false;
 
     const has = (n) => splits.includes(n);
     const hasMoreThan4 = splits.some(n => n > 4);
+
+    // A single competes ONLY with listings that can actually sell a single (valid_splits includes 1)
+    // — not pairs-only listings a single-buyer can't purchase, which used to drag our price down.
+    if (myQty === 1) {
+        return has(1);
+    }
 
     if (myQty === 2) {
         return has(2) || has(4) || hasMoreThan4;
@@ -208,14 +265,20 @@ function isEventUpcomingOrYesterday(dateStr) {
     return eventDate >= yesterday;
 }
 
-async function applyPricingForPerformance(perf, minimumPrices) {
+async function applyPricingForPerformance(perf, minimumPrices, usdToGbp) {
+    // Safety guard: if the WHOLE game has zero competitor listings, the site scrape almost certainly
+    // failed this run (API hiccup / Cloudflare) rather than the event genuinely having no competition.
+    // Bail out so we never treat every listing as "no competition" and snap them all down to their
+    // minimums on bad data. Per-listing no-competition (game has competitors, this section doesn't)
+    // is still handled below.
+    if (!perf.allListings?.length) {
+        console.log(`⚠️  ${perf.performance_name}: 0 competitor listings for the whole game — skipping (likely an API issue this run)`);
+        return;
+    }
+
     const decisions = buildPricingDecisionsForPerformance(perf);
 
     for (const d of decisions) {
-        if (!d.suggestedPrice) {
-            continue;
-        }
-
         if (blacklist.has(String(d.myListingId))) {
             console.log(`⛔ Skipping listing ${d.myListingId} (bot off)`);
             continue;
@@ -226,45 +289,58 @@ async function applyPricingForPerformance(perf, minimumPrices) {
             continue;
         }
 
-        const hasSec = hasSection(myListing);
+        // No floor set on this listing ⇒ never change its price (unchanged behaviour).
+        const minimum = minimumPrices[String(myListing.id)];
+        if (minimum == null) {
+            continue;
+        }
 
-        // Category-only (no block): no minimum price check — always apply suggested price.
-        // Section-specific listings still require minimum price and use section competition below.
+        const currentPrice = myListing.price.unit_price / 100; // USD
+        const currentGbp = currentPrice * usdToGbp;
+        const floorUsd = minimum / usdToGbp; // GBP floor → USD list price
+        const SECTION_UNDERCUT = 3;
 
-        const currentPrice = myListing.price.unit_price / 100;
-
-        // Pricing rule:
-        // - Category-only listings (no section): always apply suggestedPrice (no minimum guard).
-        // - Section-specific listings:
-        //   * Use section competition (cheapest in same block).
-        //   * If section cheapest and category-wide cheapest are effectively the same → skip (do nothing),
-        //     so section is not at the same price as the category.
-        //   * Otherwise undercut section cheapest by a fixed amount.
-        let newPrice;
-        if (hasSec) {
-            const secCheapest = getCheapestCompetitorPrice(perf, myListing);
-            if (secCheapest == null || !Number.isFinite(secCheapest)) {
-                continue;
-            }
-
-            const catCheapest = getCheapestInCategoryIgnoringSection(perf, myListing);
-            if (catCheapest != null && Number.isFinite(catCheapest)) {
-                const diff = Math.abs(secCheapest - catCheapest);
-                // If section competition is at effectively the same price as category competition,
-                // skip updating this listing so section is not priced the same as category.
-                if (diff < 0.01) {
-                    continue;
+        // 1) Competitor-based target (USD), or null when there's no competitor move to make
+        //    (price is OK, no competition, or a section priced the same as its category).
+        let target = null;
+        if (d.suggestedPrice) {
+            if (hasSection(myListing)) {
+                const secCheapest = getCheapestCompetitorPrice(perf, myListing);
+                if (secCheapest != null && Number.isFinite(secCheapest)) {
+                    const catCheapest = getCheapestInCategoryIgnoringSection(perf, myListing);
+                    const sameAsCategory =
+                        catCheapest != null && Number.isFinite(catCheapest) &&
+                        Math.abs(secCheapest - catCheapest) < 0.01;
+                    if (!sameAsCategory) {
+                        let secNew = secCheapest - SECTION_UNDERCUT;
+                        if (secNew <= 0) secNew = secCheapest;
+                        target = Number(secNew.toFixed(2));
+                    }
                 }
+            } else {
+                target = d.suggestedPrice;
             }
+        }
 
-            const SECTION_UNDERCUT = 3;
-            let secNew = secCheapest - SECTION_UNDERCUT;
-            if (secNew <= 0) {
-                secNew = secCheapest;
-            }
-            newPrice = Number(secNew.toFixed(2));
+        // 2) Final price, honouring the floor (same rule as the StubHub bot). The minimum is a GBP
+        //    dashboard value; my prices are USD, so compare in GBP.
+        //    - competitor target at/above the floor → undercut the competitor
+        //    - competitor target below the floor     → sit AT the floor (raise up / take down)
+        //    - NO competition at all                 → snap to the floor (up OR down): the minimum
+        //                                              acts as a manual price when nothing competes
+        //    - competition fine, but I'm below floor → raise UP to the floor
+        //    - competition fine and at/above floor   → leave the price alone
+        let newPrice;
+        if (target != null && target * usdToGbp >= minimum) {
+            newPrice = target;
+        } else if (target != null) {
+            newPrice = Number(floorUsd.toFixed(2));
+        } else if (d.status === "NO_COMPETITION") {
+            newPrice = Number(floorUsd.toFixed(2)); // no competition → price = minimum (up or down)
+        } else if (currentGbp < minimum) {
+            newPrice = Number(floorUsd.toFixed(2)); // competition fine but below floor → raise up to it
         } else {
-            newPrice = d.suggestedPrice;
+            continue; // competition fine and at/above floor → leave
         }
 
         // avoid micro-changes
@@ -272,12 +348,12 @@ async function applyPricingForPerformance(perf, minimumPrices) {
             continue;
         }
 
-        await updateListingPrice(myListing, newPrice);
+        await updateListingPrice(myListing, newPrice); // price set on Hello stays USD
     }
 }
 
 
-async function runPricingBot(listingsMap, minimumPrices) {
+async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
     for (const [performanceId, perf] of listingsMap.entries()) {
         if (!perf.myListings?.length || !perf.allListings?.length) continue;
 
@@ -285,7 +361,7 @@ async function runPricingBot(listingsMap, minimumPrices) {
             `⚽ Pricing ${perf.performance_name} (${perf.performance_date})`
         );
 
-        await applyPricingForPerformance(perf, minimumPrices);
+        await applyPricingForPerformance(perf, minimumPrices, usdToGbp);
     }
 }
 
@@ -391,11 +467,25 @@ async function writeListingsSnapshot(listingsMap) {
 }
 
 async function readMinimumPrices() {
+    const { MongoClient } = await import("mongodb");
+    const uri = "mongodb+srv://alaluf99_db_user:huGakuycAwaHlm5o@cluster0.mmmplb9.mongodb.net/";
+    const client = new MongoClient(uri);
     try {
-        const raw = await fs.readFile("./minimum_price.json", "utf-8");
-        return JSON.parse(raw || "{}");
-    } catch {
+        await client.connect();
+        const docs = await client.db().collection("listing_minimums")
+            .find({ platform: "hello" }, { projection: { listingId: 1, minimumPrice: 1 } })
+            .toArray();
+        const result = {};
+        for (const doc of docs) {
+            result[doc.listingId] = doc.minimumPrice;
+        }
+        console.log(`✅ Loaded ${docs.length} Hello minimums from DB`);
+        return result;
+    } catch (err) {
+        console.warn("⚠️ Could not read minimums from DB:", err.message);
         return {};
+    } finally {
+        await client.close();
     }
 }
 
@@ -415,10 +505,28 @@ async function readMinimumPrices() {
     );
 
     const minimumPrices = await readMinimumPrices();
+    const usdToGbp = await getUsdToGbp();
 
-    await runPricingBot(listings, minimumPrices);
+    // Convert every competitor's per-seat price from its native currency (EUR/GBP) to USD, in place,
+    // so all downstream pricing + snapshot math compares against USD numbers (our listings are USD).
+    const fxToUsd = await getFxToUsd();
+    let converted = 0;
+    for (const perf of listings.values()) {
+        for (const c of perf.allListings || []) {
+            const rate = fxToUsd[c.currency] ?? 1;
+            if (typeof c.pricePerSeat === "number") {
+                c.pricePerSeat = c.pricePerSeat * rate;
+                if (rate !== 1) converted++;
+            }
+        }
+    }
+    console.log(`💱 converted ${converted} competitor prices to USD`);
+
+    await runPricingBot(listings, minimumPrices, usdToGbp);
 
     await writeListingsSnapshot(listings);
+
+    await saveListingsToDB(buildListingsSnapshot(listings), usdToGbp);
 
     console.log("✅ Pricing bot finished");
 })();

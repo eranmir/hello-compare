@@ -14,6 +14,8 @@ import {
     sendTelegramMessage,
     starterFunction
 } from "./GenericUtils.js";
+import { getEventNameById } from "./db.js";
+import { getPerformanceById } from "./DiscoveryApiUtils.js";
 
 const ordersChatId = -5034935260;
 const app = express();
@@ -109,7 +111,7 @@ app.get("/api/listings/stream", async (req, res) => {
         });
 
         let listings = listingsResp.ticket_groups;
-        listings = fixListingsByPerformanceId(listings, events);
+        listings = await fixListingsByPerformanceId(listings, events);
 
         const snapshot = JSON.parse(snapshotRaw || "[]");
         const cheapestByListingId = new Map();
@@ -164,7 +166,7 @@ app.get("/api/orders/stream", async (req, res) => {
             sendSSE(res, "progress", { page });
             if (typeof res.flush === "function") res.flush();
         });
-        const data = fixOrdersByPerformanceId(orders, events);
+        const data = await fixOrdersByPerformanceId(orders, events);
         sendSSE(res, "done", { data: Object.fromEntries(data) });
     } catch (err) {
         console.error("❌ Orders stream error:", err);
@@ -184,7 +186,7 @@ app.get("/api/listings", async (req, res) => {
         ]);
 
         let listings = listingsResp.ticket_groups;
-        listings = fixListingsByPerformanceId(listings, events);
+        listings = await fixListingsByPerformanceId(listings, events);
 
         // 2) Build lookup from snapshot: listingId -> cheapest info
         const snapshot = JSON.parse(snapshotRaw || "[]");
@@ -345,7 +347,7 @@ app.get("/api/orders", async (req, res) => {
     try {
         let events = await getEventsByIdFromFile();
         let orders = await getHelloTicketsOrders();
-        orders = fixOrdersByPerformanceId(orders, events);
+        orders = await fixOrdersByPerformanceId(orders, events);
         res.json(Object.fromEntries(orders));
     } catch (err) {
         res.status(500).json({error: "Failed to fetch orders"});
@@ -436,9 +438,14 @@ app.post("/hellotickets/sandbox", async (req, res) => {
         let listings = await getHelloTicketsListings();
         let category = listings.ticket_groups.find((l) => l.id === ticket_group_id)?.category;
         let section = listings.ticket_groups.find((l) => l.id === ticket_group_id)?.section;
-        const raw = await fs.readFile('./events.json', 'utf-8');
-        let events = JSON.parse(raw);
-        let eventName = events.find((e) => e.id === performance_id)?.name || 'unknown event';
+        // Resolve the event name from the DB first (bot_event_listings), then fall back to the
+        // hellotickets API — so a sale for an event that's not in events.json never shows "unknown".
+        let eventName = await getEventNameById(performance_id);
+        if (!eventName) {
+            const perf = await getPerformanceById(performance_id);
+            eventName = perf?.name;
+        }
+        eventName = eventName || 'unknown event';
         const message = section !== undefined ? `📦Order ID: ${orderId} \n event ID: ${performance_id} \n event Name: ${eventName} \n Category: ${category} \n Section: ${section} \n Quantity: ${quantity} \n Total Amount: ${total_order_amount / 100} ${currency}\n Buyer Name: ${customer_info.name} ${customer_info.surname}\n Buyer Email: ${customer_info.email}` :
         `📦Order ID: ${orderId} \n event ID: ${performance_id} \n event Name: ${eventName} \n Category: ${category} \n Quantity: ${quantity} \n Total Amount: ${total_order_amount / 100} ${currency}\n Buyer Name: ${customer_info.name} ${customer_info.surname}\n Buyer Email: ${customer_info.email}`;
    //     console.log(message);

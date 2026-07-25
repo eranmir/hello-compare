@@ -108,7 +108,7 @@ function buildRowsFromOrdersMap(ordersMap) {
     orders = orders.filter(o => !o.status.toLowerCase().includes("reject"));
 
     // 4️⃣ Group by performance
-    const ordersMap = fixOrdersByPerformanceId(orders, events);
+    const ordersMap = await fixOrdersByPerformanceId(orders, events);
 
     // 5️⃣ Read existing order IDs from sheet
     const existingOrderIds = new Set(await readSheet());

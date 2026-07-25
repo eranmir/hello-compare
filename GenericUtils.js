@@ -9,9 +9,26 @@ import {
     getHelloTicketsOrders,
     updateListingPrice, updateOrderInfo, updateOrderStatus
 } from "./SellerApiUtils.js";
-import {awayConf, brunoconf, btsconf, configurations, harryConf, OrderStatus} from "./consts.js";
+import {awayConf, brunoconf, btsconf, chelseaConf, configurations, harryConf, OrderStatus, worldCup} from "./consts.js";
 import axios from "axios";
-import {getEventsForTeam} from "./DiscoveryApiUtils.js";
+import {getEventsForTeam, getPerformanceById, HELLO_API_BASE, HELLO_PUBLIC_KEY} from "./DiscoveryApiUtils.js";
+import {acquireProxyUrl} from "./proxyPool.js";
+import {execFile} from "child_process";
+import {promisify} from "util";
+const execFileP = promisify(execFile);
+
+// Resolve a performance's name/date: prefer events.json, but fall back to Hello's API for events
+// not in the static file (so newly-listed events aren't dropped). Caches the result back into the map.
+async function resolveEvent(eventsById, perfId) {
+    let event = eventsById.get(perfId);
+    if (event && event.name && event.date) return event;
+    const perf = await getPerformanceById(perfId);
+    if (perf) {
+        event = { name: perf.name, id: perfId, date: perf.start_date?.local_date };
+        eventsById.set(perfId, event);
+    }
+    return event || null;
+}
 
 export function fileToBase64(path) {
     return fs.readFileSync(path, {encoding: "base64"});
@@ -25,7 +42,7 @@ export async function deleteAllListings() {
     let listings = await getHelloTicketsListings();
     let events = await getEventsByIdFromFile()
     listings = listings.ticket_groups;
-    listings = fixListingsByPerformanceId(listings, events);
+    listings = await fixListingsByPerformanceId(listings, events);
     for (let key of listings.keys()) {
         await deleteTicketGroupsByPerformance(key)
     }
@@ -76,14 +93,14 @@ export async function getEventsByIdFromFile() {
     }
 }
 
-export function fixOrdersByPerformanceId(orders, eventsById) {
+export async function fixOrdersByPerformanceId(orders, eventsById) {
     const ordersByPerformance = new Map();
 
     for (const order of orders) {
         const perfId = order.performance_id;
 
         if (!ordersByPerformance.has(perfId)) {
-            const event = eventsById.get(perfId);
+            const event = await resolveEvent(eventsById, perfId);
 
             ordersByPerformance.set(perfId, {
                 performance_id: perfId,
@@ -99,25 +116,43 @@ export function fixOrdersByPerformanceId(orders, eventsById) {
     return ordersByPerformance;
 }
 
-export function fixListingsByPerformanceId(listings, eventsById) {
+export async function fixListingsByPerformanceId(listings, eventsById) {
     const listingsByPerformance = new Map();
 
+    // Pass 1: bucket listings by performance id (pure in-memory, no network).
     for (const listing of listings) {
         const perfId = listing.performance_id;
-
         if (!listingsByPerformance.has(perfId)) {
-            const event = eventsById.get(perfId);
-
             listingsByPerformance.set(perfId, {
                 performance_id: perfId,
-                performance_name: event?.name || null,
-                performance_date: event?.date || null,
+                performance_name: null,
+                performance_date: null,
                 myListings: []
             });
         }
-
         listingsByPerformance.get(perfId).myListings.push(listing);
     }
+
+    // Pass 2: resolve each unique performance's name/date concurrently. resolveEvent hits the
+    // API when the event isn't already cached in the file, so doing these sequentially cost ~27s;
+    // a bounded worker pool cuts it to a few seconds.
+    const perfIds = [...listingsByPerformance.keys()];
+    const CONCURRENCY = 8;
+    let cursor = 0;
+    async function worker() {
+        while (true) {
+            const i = cursor++;
+            if (i >= perfIds.length) return;
+            const perfId = perfIds[i];
+            const event = await resolveEvent(eventsById, perfId);
+            const entry = listingsByPerformance.get(perfId);
+            entry.performance_name = event?.name || null;
+            entry.performance_date = event?.date || null;
+        }
+    }
+    await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, perfIds.length) }, worker)
+    );
 
     return listingsByPerformance;
 }
@@ -127,7 +162,7 @@ export async function createAllEvents(events) {
     for (let eventTotal of events) {
         let event = eventTotal;
         const inHandDate = getDayBefore(event.start_date.local_date);
-        for (let conf of configurations) {
+        for (let conf of chelseaConf) {
             for (const [quantity, pricing] of Object.entries(conf.pricing)) {
                 if (conf.blocks) {
                     for (let block of conf.blocks) {
@@ -192,24 +227,31 @@ export async function getListingsFromClientSide(listings) {
             return obj; // ✅ THIS WAS MISSING
         })
     );*/
-    const results = [];
-    for (const [performanceId, obj] of listings.entries()) {
-        const lists = await getSiteListings(performanceId);
-        const myListingIds = obj.myListings.map(l => l.id.toString());
+    const entries = [...listings.entries()];
+    const results = new Array(entries.length);
 
-        obj.allListings = (lists?.tickets || []).filter(
-            l => !myListingIds.includes(l.id)
-        );
-
-        obj.myListingsToCompare = (lists?.tickets || []).filter(
-            l => myListingIds.includes(l.id)
-        );
-
-        results.push(obj);
-
-        // wait 0.5 seconds before next request
-        await new Promise(res => setTimeout(res, 500));
+    // Fetch competitor listings concurrently. Each call is server-bound (~2.5s for events with
+    // real inventory), so concurrency is the main lever; the API stays clean at 10 in flight but
+    // starts to 429 / drop connections around 12+. A worker pool keeps N requests in flight and
+    // preserves input order. getSiteListings swallows its own errors (returns empty), so one bad
+    // fetch can't sink a worker.
+    const CONCURRENCY = 10;
+    let cursor = 0;
+    async function worker() {
+        while (true) {
+            const i = cursor++;
+            if (i >= entries.length) return;
+            const [performanceId, obj] = entries[i];
+            const lists = await getSiteListings(performanceId);
+            const myListingIds = obj.myListings.map(l => l.id.toString());
+            obj.allListings = (lists?.tickets || []).filter(l => !myListingIds.includes(l.id));
+            obj.myListingsToCompare = (lists?.tickets || []).filter(l => myListingIds.includes(l.id));
+            results[i] = obj;
+        }
     }
+    await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, entries.length) }, worker)
+    );
 
     return results;
 }
@@ -296,6 +338,7 @@ function formatDate(dateStr) {
 }
 
 
+/*
 export async function getPaymentExcel(pastEventsMap) {
     const alreadyRequested = await readPaymentRequests();
     const newlyRequested = new Set(alreadyRequested);
@@ -346,8 +389,53 @@ export async function getPaymentExcel(pastEventsMap) {
 
     console.log(`✅ Payment request exported: ${fileName}`);
 }
+*/
 
+export async function getPaymentExcel(orders) {
+    const alreadyRequested = await readPaymentRequests();
+    const newlyRequested = new Set(alreadyRequested);
 
+    const rows = [];
+
+    for (const order of orders) {
+        const orderId = String(order.id);
+
+        // Skip orders already requested
+      //  if (alreadyRequested.has(orderId)) continue;
+
+        const totalUsd = order.total_price / 100;
+
+        rows.push({
+            "Order number": order.id || order.reference,
+            "Purchase Date": formatDate(order.created_at),
+            "Event Description": "BTS",
+            "Quantity": order.tickets_quantity,
+            "Amount": Math.round(totalUsd * 100) / 100,
+            "Currency": order.currency || "USD"
+        });
+
+        newlyRequested.add(orderId);
+    }
+
+    if (!rows.length) {
+        console.log("ℹ️ No new payment requests to export");
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    XLSX.utils.book_append_sheet(wb, ws, "Payment Requests");
+
+    const today = new Date().toISOString().slice(0, 10);
+    const fileName = `payment-request-${today}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+
+    await writePaymentRequests(newlyRequested);
+
+    console.log(`✅ Payment request exported: ${fileName}`);
+}
 const PAYMENT_FILE = "./paymentRequests.json";
 
 async function readPaymentRequests() {
@@ -394,33 +482,68 @@ function splitOrdersByDate(ordersMap) {
 
 
 export async function starterFunction() {
+    //await deleteAllListings()
+    let debugListings = await getSiteListings("2540672");
+    debugListings = debugListings.tickets.sort((a, b) => a.pricePerSeat - b.pricePerSeat);
 
-    await deleteTicketGroupsByPerformance( 2257225)
+    let aa = await getEventsForTeam("Chelsea");
+    aa = aa.filter(a => a.name.includes("Chelsea FC vs.")).splice( 1);
+    await createAllEvents(aa)
+   /* let events =  await getEventsByIdFromFile();
+
+    events = new Map(
+        [...events].filter(([key, event]) => event.name === "BTS")
+    );
+    const eventIds = new Set(
+        [...events.values()].map(event => event.id), 43282
+    );
+
+
+
+    //events = events.filter((event) => event.performers[0].id ===327 );
+    let orders = await getHelloTicketsOrders()
+    orders = orders.filter((order) => !order.status.includes("reject"));
+
+    orders = orders.filter(order => eventIds.has(order.performance_id));
+
+    // const { futureEvents, pastEvents } = splitOrdersByDate(orders);
+    await getPaymentExcel(orders);*/
+    // DEBUG: fetch this event's competitor listings (Chelsea vs Bournemouth, 2540672) and print them
+    // so we can inspect exactly what the Hello API returns (id, section, currency, ticket_price,
+    // valid_splits, plus the normalised pricePerSeat/validSplits). Early-return so nothing else runs.
+    console.log(`event 2540672 — ${debugListings?.tickets?.length ?? 0} listings:`);
+    console.log(JSON.stringify(debugListings, null, 2));
+    return;
+
+    // eslint-disable-next-line no-unreachable
+    // await deleteTicketGroupsByPerformance( 2540753)
+
+   // let aa = await getEventsForTeam("Manchester United");
+  //let listings = await getHelloTicketsListings();
+
+
+        //aa = aa.filter(a => a.name.includes("Manchester United FC vs.") || a.name.includes("Arsenal FC vs."));
+    //await createAllEvents(aa);
+     //listings = await getHelloTicketsListings();
+
+    //orders = orders.filter((order) => !order.status.includes("reject"));
+
+    //const missingOrders = orders.filter(order => !ids.includes(order.id));
+
         // await deleteTicketGroupsByPerformance( 2254337 )
- //   let aa = await getEventsForTeam("fa cup");
-    //await createAllEvents( [aa[0]]);
 
-let orders = await getHelloTicketsOrders()
-let events =  await getEventsByIdFromFile();
 
-orders = orders.filter((order) => !order.status.includes("reject"));
 
-orders = fixOrdersByPerformanceId(orders, events)
-    await exportOrdersToExcel(orders, 'hello_orders.xlsx');
 
-    const { futureEvents, pastEvents } = splitOrdersByDate(orders);
+orders = await fixOrdersByPerformanceId(orders, events)
+ //   await exportOrdersToExcel(orders, 'hello_orders.xlsx');
 
-await getPaymentExcel(pastEvents);
+
 
  //let aa = await getEventsForTeam("galatasaray");
     /*orders = orders.filter((order) => !order.status.includes("reject"));
-    orders = fixOrdersByPerformanceId(orders, events)
+    orders = await fixOrdersByPerformanceId(orders, events)
     await exportOrdersToExcel(orders, 'hello_orders.xlsx');*/
-
-
-
-
-    let listings = await getHelloTicketsListings();
 
     listings = listings.ticket_groups;
     listings = await fixListingsByPerformanceId(listings, events);
@@ -499,21 +622,44 @@ await getPaymentExcel(pastEvents);
 
 }
 
+// Fetch competitor listings for a performance from HelloTickets' official partner API
+// (X-Public-Key auth). Returns { tickets: [...] }. Being an official API, it has no
+// Cloudflare TLS fingerprinting, so the old curl + rotating-proxy workaround is gone.
+//
+// The API renames a few fields vs the old client-site endpoint the pricing code was written
+// against, so normaliseTicket() aliases them back (see below) — otherwise every competitor
+// price/split reads as undefined and managetix shows empty competition for all listings.
 export async function getSiteListings(performanceId) {
+    const url = `${HELLO_API_BASE}/v1/tickets/${performanceId}`;
     try {
-        const resp = await axios.get(
-            `https://www.hellotickets.com/api/performances/${performanceId}/tickets`,
-            {
-                headers: {
-                    "accept": "application/json",
-                    "accept-language": "en-US,en;q=0.9",
-                    "cookie": "ht-internal-traffic=0; locale=en_US; cookiesAccepted=true"
-                }
-            }
-        );
-
-        return resp.data;
+        const { data } = await axios.get(url, {
+            timeout: 30000,
+            maxContentLength: 25 * 1024 * 1024,
+            headers: {
+                "X-Public-Key": HELLO_PUBLIC_KEY,
+                Accept: "application/json",
+            },
+        });
+        if (data && Array.isArray(data.tickets)) {
+            data.tickets.forEach(normaliseTicket);
+            return data;
+        }
+        throw new Error(data?.error_message || "unexpected response (no tickets array)");
     } catch (err) {
-        console.error("Error fetching site listings:", err.response?.data || err.message);
+        // 404 "no record found" just means this performance has no listings — treat as empty, not an error.
+        if (err.response?.status === 404) return { tickets: [] };
+        console.error(`Error fetching site listings (perf ${performanceId}):`, (err.message || "").slice(0, 120));
     }
+}
+
+// Map the official API's ticket fields onto the names the pricing code (helloBot.js) expects.
+// The old client-site endpoint exposed pricePerSeat / validSplits directly; the partner API
+// calls them ticket_price / valid_splits. ticket_price is per-seat (verified: it doesn't scale
+// with quantity). Currency: the API returns the event's native currency (often EUR) and offers
+// no override — per user's call we treat the number as USD 1:1 for now (suspected HT bug, to be
+// verified later). id is coerced to String so my-own-listing exclusion (string listing ids) matches.
+function normaliseTicket(t) {
+    if (t.pricePerSeat == null) t.pricePerSeat = t.ticket_price;
+    if (t.validSplits == null) t.validSplits = t.valid_splits;
+    if (t.id != null) t.id = String(t.id);
 }

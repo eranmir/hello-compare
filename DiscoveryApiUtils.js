@@ -21,9 +21,15 @@ const {
     publicKey
 } = HELLOTICKETS_CONFIG[ENV];
 
+// Shared with the reprice bot for the official tickets API (X-Public-Key auth).
+// Trailing slash stripped so callers can safely build `${HELLO_API_BASE}/v1/...`.
+export const HELLO_API_BASE = baseUrl.replace(/\/+$/, "");
+export const HELLO_PUBLIC_KEY = publicKey;
+
 export  async function getEventsForTeam(teamName) {
     try {
         let performerId = await getPerformerId(teamName);
+        //performerId = 11983
     const response = await axios.get(`${baseUrl}/v1/performances?limit=1000&page=1&performer_id=${performerId}`, {
         headers: {
         Accept: "application/json",
@@ -36,6 +42,25 @@ export  async function getEventsForTeam(teamName) {
     return response.data.performances;
     } catch (err) {
         console.error(`Error fetching events for team ${teamName}:`, err.message);
+        return null;
+    }
+}
+
+// Look up a single performance (event) by id — used to resolve events that aren't in events.json,
+// so newly-listed events show up without manually rebuilding the file. Cached per process run.
+const _perfCache = new Map();
+export async function getPerformanceById(performanceId) {
+    if (_perfCache.has(performanceId)) return _perfCache.get(performanceId);
+    try {
+        const response = await axios.get(`${baseUrl}/v1/performances/${performanceId}`, {
+            headers: { Accept: "application/json", "x-private-key": privateKey },
+        });
+        const perf = response.data?.performance || null;
+        _perfCache.set(performanceId, perf);
+        return perf;
+    } catch (err) {
+        console.error(`Error fetching performance ${performanceId}:`, err.response?.status || err.message);
+        _perfCache.set(performanceId, null);
         return null;
     }
 }

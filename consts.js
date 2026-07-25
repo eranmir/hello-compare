@@ -303,87 +303,214 @@ function range(a, b) {
     for (let i = a; i <= b; i++) out.push(String(i));
     return out;
 }
-
-export const configurations = [
-
-   /* {
-        section: "UPPER TIER",
+export const worldCup = [
+    {
+        section: "Category 1",
         pricing: {
-            1: {price: 1500, face: 0},
-            2: {price: 1500, face: 0},
-            3: {price: 1500, face: 0},
-            4: {price: 1500, face: 0}
+            1: { price: 50000, face: 0 },
+            2: { price: 50000, face: 0 },
+            3: { price: 50000, face: 0 },
+            4: { price: 54000, face: 0 }
         },
-        //  blocks: [...range(531, 548), ...range(505, 522)]
-        //  blocks: [...range(248, 250), ...range(258, 260),...range(322, 325),...range(451,453),...range(510,520)]
-         // blocks: [...range(95, 108), ...range(117, 130)]
-        //blocks: [...range(316, 318)]
-        blocks: [...range(501, 552)]
-        // blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
-    //    blocks: range(1, 8).map((n) => "AU" + n).concat(range(202, 208)).concat(range(304, 306))
-    },*/
-  /* {
-        section: "SHORTSIDE TIER",
-        pricing: {
-            1: {price: 1000, face: 0},
-            2: {price: 1000, face: 0},
-            3: {price: 1000, face: 0},
-            4: {price: 1000, face: 0}
-        },
-        //  blocks: [...range(248, 250), ...range(258, 260),...range(322, 325),...range(451,453),...range(510,520)]
-        // blocks: [...range(95, 108), ...range(117, 130)]
-        //blocks: [...range(316, 318)]
-        //blocks: [...range(501, 552)]
-        // blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
-        //    blocks: range(1, 8).map((n) => "AU" + n).concat(range(202, 208)).concat(range(304, 306))
+        //  blocks: range(41, 84).map((n) => "B" + n)
+        // blocks: range(201, 252)
     },
     {
-        section: "MANCHESTER CITY SHORTSIDE UPPER TIER",
+        section: "Category 2",
         pricing: {
-            1: {price: 1000, face: 0},
-            2: {price: 1000, face: 0},
-            3: {price: 1000, face: 0},
-            4: {price: 1000, face: 0}
+            1: { price: 40000, face: 0 },
+            2: { price: 40000, face: 0 },
+            3: { price: 40000, face: 0 },
+            4: { price: 44000, face: 0 }
         },
-        //  blocks: [...range(248, 250), ...range(258, 260),...range(322, 325),...range(451,453),...range(510,520)]
-        // blocks: [...range(95, 108), ...range(117, 130)]
-        //blocks: [...range(316, 318)]
-        //blocks: [...range(501, 552)]
-        // blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
-        //    blocks: range(1, 8).map((n) => "AU" + n).concat(range(202, 208)).concat(range(304, 306))
+        //  blocks: range(41, 84).map((n) => "B" + n)
+        // blocks: range(201, 252)
     },
     {
-        section: "CHELSEA SHORTSIDE UPPER TIER",
+        section: "Category 3",
         pricing: {
-            1: {price: 1000, face: 0},
-            2: {price: 1000, face: 0},
-            3: {price: 1000, face: 0},
-            4: {price: 1000, face: 0}
+            1: { price: 30000, face: 0 },
+            2: { price: 30000, face: 0 },
+            3: { price: 30000, face: 0 },
+            4: { price: 34000, face: 0 }
         },
-        //  blocks: [...range(248, 250), ...range(258, 260),...range(322, 325),...range(451,453),...range(510,520)]
-        // blocks: [...range(95, 108), ...range(117, 130)]
-        //blocks: [...range(316, 318)]
-        //blocks: [...range(501, 552)]
-        // blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
-        //    blocks: range(1, 8).map((n) => "AU" + n).concat(range(202, 208)).concat(range(304, 306))
+        //  blocks: range(41, 84).map((n) => "B" + n)
+        // blocks: range(201, 252)
     },
+]
 
+export const chelseaConf = [
+    {
+        section: "VIP PACKAGES",
+        pricing: {
+            1: { price: 20000, face: 0 },
+            2: { price: 20000, face: 0 },
+            3: { price: 20000, face: 0 },
+            4: { price: 24000, face: 0 }
+        },
+         blocks: ["CAPTAINS", "ROSE & BOWL", "BLUES DINING", "CANOVILLE","CANOVILLE 2", "EXEC CLUB"]
+    },
     {
         section: "SHORTSIDE UPPER TIER",
         pricing: {
-            1: {price: 1000, face: 0},
-            2: {price: 1000, face: 0},
-            3: {price: 1000, face: 0},
-            4: {price: 1000, face: 0}
+            1: {price: 5000, face: 0},
+            2: {price: 10000, face: 0},
+            3: {price: 10000, face: 0},
+            4: {price: 10000, face: 0}
+        },
+        blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
+    },
+    {
+        section: "LONGSIDE UPPER TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+        blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
+    },
+
+
+    {
+        section: "SHORTSIDE LOWER TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+           blocks: range(1, 8).map((n) => "SL" + n).concat("L08").concat("L09").concat(range(10, 16).map((n) => "L" + n))
+    },
+    {
+        section: "LONGSIDE LOWER TIER",
+        pricing: {
+            1: { price: 15000, face: 0 },
+            2: { price: 15000, face: 0 },
+            3: { price: 15000, face: 0 },
+            4: { price: 15000, face: 0 }
+        },
+        blocks: range(1, 8).map((n) => "WL" + n)
+    },
+
+
+    /*{
+        section: "AWAY FANS",
+        pricing: {
+            1: { price: 9999, face: 0 },
+            2: { price: 9999, face: 0 },
+            3: { price: 9999, face: 0 },
+            4: { price: 9999, face: 0 }
+        },
+    }*/
+];
+
+export const configurations = [
+        {
+            section: "VIP PACKAGES",
+            pricing: {
+                1: { price: 20000, face: 0 },
+                2: { price: 20000, face: 0 },
+                3: { price: 20000, face: 0 },
+                4: { price: 24000, face: 0 }
+            },
+            //  blocks: range(41, 84).map((n) => "B" + n)
+            // blocks: range(201, 252)
+        },
+{
+        section: "SHORTSIDE UPPER TIER",
+        pricing: {
+            1: {price: 5000, face: 0},
+            2: {price: 10000, face: 0},
+            3: {price: 10000, face: 0},
+            4: {price: 10000, face: 0}
         },
         //  blocks: [...range(248, 250), ...range(258, 260),...range(322, 325),...range(451,453),...range(510,520)]
-        // blocks: [...range(95, 108), ...range(117, 130)]
+       //  blocks: [...range(95, 108), ...range(117, 130)]
         //blocks: [...range(316, 318)]
         //blocks: [...range(501, 552)]
         // blocks: range(1, 8).map((n) => "SU" + n).concat("U08").concat("U09").concat(range(10, 17).map((n) => "U" + n))
         //    blocks: range(1, 8).map((n) => "AU" + n).concat(range(202, 208)).concat(range(304, 306))
     },
-   /!* {
+    {
+        section: "LONGSIDE UPPER TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+        // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
+      //  blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
+        //      blocks: [...range(501, 504), ...range(549, 552), ...range(523, 530)]
+        // blocks: [...range(501, 509), ...range(521, 530), ]
+        // blocks: [...range(301, 309), ...range(322, 330), ]
+        //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
+    },
+
+   /* {
+        section: "LONGSIDE MIDDLE TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+        // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
+        //    blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
+        //      blocks: [...range(501, 504), ...range(549, 552), ...range(523, 530)]
+        // blocks: [...range(501, 509), ...range(521, 530), ]
+        // blocks: [...range(301, 309), ...range(322, 330), ]
+        //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
+    },*/
+
+   /* {
+        section: "SHORTSIDE MIDDLE TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+        // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
+        //    blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
+        //      blocks: [...range(501, 504), ...range(549, 552), ...range(523, 530)]
+        // blocks: [...range(501, 509), ...range(521, 530), ]
+        // blocks: [...range(301, 309), ...range(322, 330), ]
+        //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
+    },*/
+    {
+        section: "SHORTSIDE LOWER TIER",
+        pricing: {
+            1: { price: 10000, face: 0 },
+            2: { price: 10000, face: 0 },
+            3: { price: 10000, face: 0 },
+            4: { price: 10000, face: 0 }
+        },
+       // blocks: [...range(127, 140), ...range(105, 118)]
+        //   blocks: [...range(109, 113), ...range(251, 252),...range(256, 257), "254"]
+        //blocks: [...range(16,19), ...range(32,40)]
+     //   blocks: [...range(5,12), ...range(24,28)]
+        // blocks: range(1, 8).map((n) => "SL" + n).concat("L08").concat("L09").concat(range(10, 16).map((n) => "L" + n))
+        //    blocks: range(1, 6).map((n) => "AL" + n).concat(range(102, 108))
+
+    },
+    {
+        section: "LONGSIDE LOWER TIER",
+        pricing: {
+            1: { price: 15000, face: 0 },
+            2: { price: 15000, face: 0 },
+            3: { price: 15000, face: 0 },
+            4: { price: 15000, face: 0 }
+        },
+      //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
+     //   blocks: [...range(103, 104),...range(141, 142),...range(119, 126)]
+        //blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
+       // blocks: [...range(21, 31), ...range(1, 10),"42", ]
+        //blocks: range(1, 8).map((n) => "WL" + n)
+       // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
+    },
+   /* {
         section: "VIP PACKAGES",
         pricing: {
             1: { price: 99999, face: 0 },
@@ -415,140 +542,9 @@ export const configurations = [
         },
        // blocks: [...range(111,120), ...range(132,141)]
     },*!/
-    {
-        section: "LONGSIDE UPPER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-       // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
-      //    blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
-    //      blocks: [...range(501, 504), ...range(549, 552), ...range(523, 530)]
-    // blocks: [...range(501, 509), ...range(521, 530), ]
-    // blocks: [...range(301, 309), ...range(322, 330), ]
-    //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
-    },
-   {
-        section: "MANCHESTER CITY LONGSIDE UPPER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-        // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
-        //    blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
-        //  blocks: [...range(501, 509), ...range(521, 530), ]
-        // blocks: [...range(301, 309), ...range(322, 330), ]
-        //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
-    },
-    {
-        section: "CHELSEA LONGSIDE UPPER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-        // blocks: range(1, 8).map((n) => "WU" + n).concat(["EU1", "EU3", "EU5", "EU7"])
-        //    blocks: [...range(109, 116), ...range(91, 94), ...range(131, 134)]
-        //  blocks: [...range(501, 509), ...range(521, 530), ]
-        // blocks: [...range(301, 309), ...range(322, 330), ]
-        //blocks: range(1, 9).map((n) => "U" + n).concat( range(1, 9).map((n) => "CE" + n))
-    },
-    {
-        section: "SHORTSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-        blocks: [...range(127, 140), ...range(105, 118)]
-     //   blocks: [...range(109, 113), ...range(251, 252),...range(256, 257), "254"]
-        //blocks: [...range(16,19), ...range(32,40)]
-       // blocks: range(1, 8).map((n) => "SL" + n).concat("L08").concat("L09").concat(range(10, 16).map((n) => "L" + n))
-    //    blocks: range(1, 6).map((n) => "AL" + n).concat(range(102, 108))
-
-    },
-    {
-        section: "CHELSEA SHORTSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-        blocks: [...range(127, 140), ...range(105, 118)]
-        //   blocks: [...range(109, 113), ...range(251, 252),...range(256, 257), "254"]
-        //blocks: [...range(16,19), ...range(32,40)]
-        // blocks: range(1, 8).map((n) => "SL" + n).concat("L08").concat("L09").concat(range(10, 16).map((n) => "L" + n))
-        //    blocks: range(1, 6).map((n) => "AL" + n).concat(range(102, 108))
-
-    },
-     /!*       {
-        section: "MANCHESTER CITY SHORTSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1000, face: 0 },
-            2: { price: 1000, face: 0 },
-            3: { price: 1000, face: 0 },
-            4: { price: 1000, face: 0 }
-        },
-        //  blocks: [...range(5, 12), ...range(24, 28)]
-        //   blocks: [...range(109, 113), ...range(251, 252),...range(256, 257), "254"]
-        //blocks: [...range(16,19), ...range(32,40)]
-        // blocks: range(1, 8).map((n) => "SL" + n).concat("L08").concat("L09").concat(range(10, 16).map((n) => "L" + n))
-        //    blocks: range(1, 6).map((n) => "AL" + n).concat(range(102, 108))
-
-    },*!/
 */
-    {
-        section: "LONGSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1500, face: 0 },
-            2: { price: 1500, face: 0 },
-            3: { price: 1500, face: 0 },
-            4: { price: 1500, face: 0 }
-        },
-      //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
-     //   blocks: [...range(103, 104),...range(141, 142),...range(119, 126)]
-      //  blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
-       // blocks: [...range(21, 31), ...range(1, 10),"42", ]
-        //blocks: range(1, 8).map((n) => "WL" + n)
-       // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
-    },
-    {
-        section: "CHELSEA LONGSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1500, face: 0 },
-            2: { price: 1500, face: 0 },
-            3: { price: 1500, face: 0 },
-            4: { price: 1500, face: 0 }
-        },
-        //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
-      //  blocks: [...range(103, 104),...range(141, 142),...range(119, 126)]
-        //  blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
-        // blocks: [...range(21, 31), ...range(1, 10),"42", ]
-        //blocks: range(1, 8).map((n) => "WL" + n)
-        // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
-    },
-    {
-        section: "CHELSEA CENTRAL LONGSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1500, face: 0 },
-            2: { price: 1500, face: 0 },
-            3: { price: 1500, face: 0 },
-            4: { price: 1500, face: 0 }
-        },
-        //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
-     //   blocks: [...range(103, 104),...range(141, 142),...range(119, 126)]
-        //  blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
-        // blocks: [...range(21, 31), ...range(1, 10),"42", ]
-        //blocks: range(1, 8).map((n) => "WL" + n)
-        // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
-    },
+
+   /*
     {
         section: "CENTRAL LONGSIDE LOWER TIER",
         pricing: {
@@ -556,31 +552,16 @@ export const configurations = [
             2: { price: 1500, face: 0 },
             3: { price: 1500, face: 0 },
             4: { price: 1500, face: 0 }
-        },
+        },*/
         //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
     //    blocks: [...range(103, 104),...range(141, 142),...range(119, 126)]
         //  blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
         // blocks: [...range(21, 31), ...range(1, 10),"42", ]
         //blocks: range(1, 8).map((n) => "WL" + n)
         // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
-    },
-    /*{
-        section: "MANCHESTER CITY LONGSIDE LOWER TIER",
-        pricing: {
-            1: { price: 1500, face: 0 },
-            2: { price: 1500, face: 0 },
-            3: { price: 1500, face: 0 },
-            4: { price: 1500, face: 0 }
-        },
-        //  blocks: [...range(101, 105),"107", "108", "119",...range(122,124)]
-        // blocks: [...range(101, 144)]
-        //  blocks: [...range(13, 19), ...range(1, 4), ...range(29, 32)]
-        // blocks: [...range(21, 31), ...range(1, 10),"42", ]
-        //blocks: range(1, 8).map((n) => "WL" + n)
-        // blocks: range(1, 10).map((n) => "L" + n).concat(["KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP"])
-    },*/
+    //},
 
-    {
+   /* {
         section: "CLUB LEVEL TIER",
         pricing: {
             1: { price: 2000, face: 0 },
@@ -588,46 +569,9 @@ export const configurations = [
             3: { price: 2000, face: 0 },
             4: { price: 2400, face: 0 }
         },
-      //  blocks: range(41, 84).map((n) => "B" + n)
+        blocks: range(41, 84).map((n) => "B" + n)
     //    blocks: range(201, 252)
-    },
-   /* {
-        section: "MANCHESTER CITY CLUB LEVEL TIER",
-        pricing: {
-            1: { price: 2000, face: 0 },
-            2: { price: 2000, face: 0 },
-            3: { price: 2000, face: 0 },
-            4: { price: 2400, face: 0 }
-        },
-        //  blocks: range(41, 84).map((n) => "B" + n)
-        // blocks: range(201, 252)
     },*/
-/*
-
-    {
-        section: "SHORTSIDE CLUB LEVEL TIER",
-        pricing: {
-            1: { price: 2000, face: 0 },
-            2: { price: 2000, face: 0 },
-            3: { price: 2000, face: 0 },
-            4: { price: 2400, face: 0 }
-        },
-        //  blocks: range(41, 84).map((n) => "B" + n)
-        // blocks: range(201, 252)
-    },
-
-    {
-        section: "LONGSIDE CLUB LEVEL TIER",
-        pricing: {
-            1: { price: 2000, face: 0 },
-            2: { price: 2000, face: 0 },
-            3: { price: 2000, face: 0 },
-            4: { price: 2400, face: 0 }
-        },
-        //  blocks: range(41, 84).map((n) => "B" + n)
-        // blocks: range(201, 252)
-    },
-*/
 
     /*{
         section: "AWAY FANS",
