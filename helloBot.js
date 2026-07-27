@@ -283,7 +283,10 @@ function isEventUpcomingOrYesterday(dateStr) {
     return eventDate >= yesterday;
 }
 
-async function applyPricingForPerformance(perf, minimumPrices, usdToGbp) {
+// Build the list of {listing, price} updates for a performance WITHOUT sending them — the actual
+// PUTs are run in parallel by runPricingBot (see below). This is pure computation, so it's fast.
+function collectPricingJobsForPerformance(perf, minimumPrices, usdToGbp) {
+    const jobs = [];
     // Safety guard: if the WHOLE game has zero competitor listings, the site scrape almost certainly
     // failed this run (API hiccup / Cloudflare) rather than the event genuinely having no competition.
     // Bail out so we never treat every listing as "no competition" and snap them all down to their
@@ -291,7 +294,7 @@ async function applyPricingForPerformance(perf, minimumPrices, usdToGbp) {
     // is still handled below.
     if (!perf.allListings?.length) {
         console.log(`⚠️  ${perf.performance_name}: 0 competitor listings for the whole game — skipping (likely an API issue this run)`);
-        return;
+        return jobs;
     }
 
     const decisions = buildPricingDecisionsForPerformance(perf);
@@ -366,21 +369,43 @@ async function applyPricingForPerformance(perf, minimumPrices, usdToGbp) {
             continue;
         }
 
-        await updateListingPrice(myListing, newPrice); // price set on Hello stays USD
+        jobs.push({ listing: myListing, price: newPrice }); // price set on Hello stays USD
     }
+    return jobs;
 }
 
+// Run `worker(item)` over items with at most `limit` in flight. updateListingPrice swallows its own
+// errors, so one bad update never sinks the pool.
+async function runPool(items, worker, limit) {
+    let i = 0;
+    async function runner() {
+        while (i < items.length) {
+            const item = items[i++];
+            await worker(item);
+        }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
+}
+
+// Concurrency for the price-update PUTs. Sequential updates made a full run ~16 min (Arsenal events
+// have 484 listings each); running them in parallel brings it back to a few minutes. Kept modest so
+// we don't hammer the Hello Seller API into 429s.
+const UPDATE_CONCURRENCY = 12;
 
 async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
+    // Phase 1: compute every needed price change (fast, no network).
+    const allJobs = [];
     for (const [performanceId, perf] of listingsMap.entries()) {
         if (!perf.myListings?.length || !perf.allListings?.length) continue;
-
-        console.log(
-            `⚽ Pricing ${perf.performance_name} (${perf.performance_date})`
-        );
-
-        await applyPricingForPerformance(perf, minimumPrices, usdToGbp);
+        console.log(`⚽ Pricing ${perf.performance_name} (${perf.performance_date})`);
+        const jobs = collectPricingJobsForPerformance(perf, minimumPrices, usdToGbp);
+        for (const j of jobs) allJobs.push(j);
     }
+    // Phase 2: apply them all in parallel.
+    console.log(`🧮 ${allJobs.length} price updates to apply (concurrency ${UPDATE_CONCURRENCY})`);
+    const t0 = Date.now();
+    await runPool(allJobs, (j) => updateListingPrice(j.listing, j.price), UPDATE_CONCURRENCY);
+    console.log(`✅ applied ${allJobs.length} price updates in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
 function getCheapestCompetitorPrice(perf, myListing) {
