@@ -6,7 +6,7 @@ import {
     getListingsFromClientSide,
 } from "./GenericUtils.js";
 import {getBlacklistSet} from "./blackListUtils.js";
-import {saveListingsToDB} from "./db.js";
+import {saveListingsToDB, getGbpRatesFromDB} from "./db.js";
 
 const LISTINGS_SNAPSHOT_FILE = "./listingsSnapshot.json";
 
@@ -30,6 +30,15 @@ const CURRENCY_TOKENS = [
 ];
 
 async function getUsdToGbp() {
+    // Preferred: managetix's daily GBP rate (fx_rates/gbp_rates, refreshed once a day). Live, consistent
+    // with the dashboard, and no per-run FX-API quota to burn (the old per-run fetch kept 429ing and
+    // falling back to a stale rate, which corrupted every price decision).
+    const gbp = await getGbpRatesFromDB();
+    if (gbp && Number.isFinite(gbp.USD)) {
+        console.log(`💱 USD→GBP (managetix daily): ${gbp.USD}`);
+        return gbp.USD;
+    }
+    // Fallback: live FX API, then the hardcoded constant.
     try {
         const key = CURRENCY_TOKENS[Math.floor(Math.random() * CURRENCY_TOKENS.length)];
         const res = await fetch(
@@ -38,7 +47,7 @@ async function getUsdToGbp() {
         const json = await res.json();
         const rate = json?.data?.GBP;
         if (rate && Number.isFinite(rate)) {
-            console.log(`💱 USD→GBP rate: ${rate}`);
+            console.log(`💱 USD→GBP rate (FX API fallback): ${rate}`);
             return rate;
         }
     } catch (err) {
@@ -48,9 +57,18 @@ async function getUsdToGbp() {
     return USD_GBP_FALLBACK;
 }
 
-// Live FX multipliers TO USD, keyed by currency code, for converting competitor prices to USD.
+// FX multipliers TO USD, keyed by currency code, for converting competitor prices to USD.
 async function getFxToUsd() {
     const fx = { USD: 1, EUR: EUR_USD_FALLBACK, GBP: GBP_USD_FALLBACK };
+    // Preferred: derive X→USD from managetix's daily GBP rates. X→USD = (X→GBP) / (USD→GBP).
+    const gbp = await getGbpRatesFromDB();
+    if (gbp && Number.isFinite(gbp.USD) && gbp.USD > 0) {
+        if (Number.isFinite(gbp.EUR)) fx.EUR = gbp.EUR / gbp.USD;
+        fx.GBP = (gbp.GBP ?? 1) / gbp.USD;
+        console.log(`💱 EUR→USD: ${fx.EUR.toFixed(4)} | GBP→USD: ${fx.GBP.toFixed(4)} (managetix daily)`);
+        return fx;
+    }
+    // Fallback: live FX API, then constants.
     try {
         const key = CURRENCY_TOKENS[Math.floor(Math.random() * CURRENCY_TOKENS.length)];
         const res = await fetch(
@@ -60,7 +78,7 @@ async function getFxToUsd() {
         // API gives USD→X; invert to get X→USD.
         if (json?.data?.EUR && Number.isFinite(json.data.EUR)) fx.EUR = 1 / json.data.EUR;
         if (json?.data?.GBP && Number.isFinite(json.data.GBP)) fx.GBP = 1 / json.data.GBP;
-        console.log(`💱 EUR→USD: ${fx.EUR.toFixed(4)} | GBP→USD: ${fx.GBP.toFixed(4)}`);
+        console.log(`💱 EUR→USD: ${fx.EUR.toFixed(4)} | GBP→USD: ${fx.GBP.toFixed(4)} (FX API fallback)`);
     } catch (err) {
         console.warn("⚠️ Could not fetch FX→USD rates, using fallbacks:", err.message);
     }
