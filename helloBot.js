@@ -368,6 +368,10 @@ function collectPricingJobsForPerformance(perf, minimumPrices, usdToGbp) {
             continue; // competition fine and at/above floor → leave
         }
 
+        // updateListingPrice() sets Math.floor(newPrice), so compare against the FLOORED value —
+        // otherwise a target with a fractional part ≥0.5 looks "not yet applied" every run and the
+        // listing gets re-updated forever (the backlog never drains).
+        newPrice = Math.floor(newPrice);
         // avoid micro-changes
         if (Math.abs(currentPrice - newPrice) < 0.5) {
             continue;
