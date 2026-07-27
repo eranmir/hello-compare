@@ -388,7 +388,7 @@ async function runPool(items, worker, limit) {
 // Concurrency for the price-update PUTs. Sequential updates made a full run ~16 min (Arsenal events
 // have 484 listings each); running them in parallel brings it back to a few minutes. Kept modest so
 // we don't hammer the Hello Seller API into 429s.
-const UPDATE_CONCURRENCY = 12;
+const UPDATE_CONCURRENCY = 20;
 
 async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
     // Phase 1: compute every needed price change (fast, no network).
