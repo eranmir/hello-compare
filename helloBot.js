@@ -12,6 +12,12 @@ const LISTINGS_SNAPSHOT_FILE = "./listingsSnapshot.json";
 
 const UNDERCUT_AMOUNT = 2;   // USD
 const RAISE_THRESHOLD = 4;   // USD
+// Markup Hello's API feed (getSiteListings) applies to OUR listing prices: measured ~1.26 across
+// 197 live listings (1.256–1.263). The bot converts between our seller price and feed prices with
+// this. Was hardcoded 1.1, which under-compensated → our listings sat ~15% ABOVE competitors on the
+// buyer site despite the bot thinking we were cheapest (0 sales). Buyer-final markup is higher
+// (~1.43 = 1.1 site markup × 1.3 cart fee) but the bot works in feed space, so 1.26 is the value here.
+const HELLO_MARKUP = 1.26;
 const blacklist = await getBlacklistSet();
 
 // Hello prices are USD; the dashboard + minimum floors are GBP. Fetch a live USD→GBP rate.
@@ -138,7 +144,7 @@ function buildPricingDecisionsForPerformance(perf) {
         const myQty = my.split_type === 4 ? 2 : my.available_quantity;
 
         const myPrice = my.price.unit_price / 100; // actual USD
-        const myNormalized = myPrice * 1.1;
+        const myNormalized = myPrice * HELLO_MARKUP;
 
         const competitors = perf.allListings.filter(c => {
             if (!quantityMatches(myQty, c)) return false;
@@ -178,7 +184,7 @@ function buildPricingDecisionsForPerformance(perf) {
         // ─────────────────────────────
         if (diff > 0) {
             let suggestedPrice =
-                (cheapestPrice - UNDERCUT_AMOUNT) / 1.1;
+                (cheapestPrice - UNDERCUT_AMOUNT) / HELLO_MARKUP;
             decisions.push({
                 myListingId: my.id,
                 performance_id: perf.performance_id,
@@ -197,7 +203,7 @@ function buildPricingDecisionsForPerformance(perf) {
         // ─────────────────────────────
         if (Math.abs(diff) >= RAISE_THRESHOLD) {
             const suggestedPrice =
-                (cheapestPrice - UNDERCUT_AMOUNT) / 1.1;
+                (cheapestPrice - UNDERCUT_AMOUNT) / HELLO_MARKUP;
 
             // Safety: never suggest lowering when raising
             if (suggestedPrice > myPrice) {
@@ -388,7 +394,7 @@ async function runPool(items, worker, limit) {
 // Concurrency for the price-update PUTs. Sequential updates made a full run ~16 min (Arsenal events
 // have 484 listings each); running them in parallel brings it back to a few minutes. Kept modest so
 // we don't hammer the Hello Seller API into 429s.
-const UPDATE_CONCURRENCY = 20;
+const UPDATE_CONCURRENCY = 10;
 
 async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
     // Phase 1: compute every needed price change (fast, no network).
@@ -427,7 +433,7 @@ function getCheapestCompetitorPrice(perf, myListing) {
 
     // Competitor prices are taken from the client-side feed (includes ~10% markup).
     // Snapshot should store the "real" price after removing that markup.
-    return cheapest.pricePerSeat / 1.1;
+    return cheapest.pricePerSeat / HELLO_MARKUP;
 }
 
 /** Cheapest in category that fits quantity, ignoring section/block. */
@@ -444,7 +450,7 @@ function getCheapestInCategoryIgnoringSection(perf, myListing) {
     const cheapest = competitors.reduce((min, c) =>
         c.pricePerSeat < min.pricePerSeat ? c : min
     );
-    return cheapest.pricePerSeat / 1.1;
+    return cheapest.pricePerSeat / HELLO_MARKUP;
 }
 
 /**

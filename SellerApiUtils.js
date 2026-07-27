@@ -49,18 +49,29 @@ export async function updateListingPrice(listing, newPrice) {
         if (listing.section) {
             data.section = listing.section;
         }
-        const resp = await axios.put(
-            `${baseUrl}/v1/listings/${listing.id}`,
-            data,
-            {
-                headers: {
-                    Accept: "application/json",
-                    "x-private-key": privateKey,
+        const url = `${baseUrl}/v1/listings/${listing.id}`;
+        const headers = { Accept: "application/json", "x-private-key": privateKey };
+        // Retry on 429 (Cloudflare rate-limit) with exponential backoff + jitter, so a burst of
+        // updates doesn't permanently drop price changes. Only 429 is retried; other errors fail fast.
+        for (let attempt = 0; attempt < 6; attempt++) {
+            try {
+                await axios.put(url, data, { headers });
+                return true;
+            } catch (err) {
+                const status = err.response?.status;
+                if (status === 429 && attempt < 5) {
+                    const wait = 600 * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+                    await new Promise((r) => setTimeout(r, wait));
+                    continue;
                 }
-            });
-        //   }
+                console.error(`Error updating listing ${listing.id}: ${status || err.message}`);
+                return false;
+            }
+        }
+        return false;
     } catch (err) {
-        console.error(`Error updating listing ${listing.id}:`, err.response?.data || err.message);
+        console.error(`Error updating listing ${listing.id}: ${err.message}`);
+        return false;
     }
 }
 
