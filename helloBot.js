@@ -394,7 +394,12 @@ async function runPool(items, worker, limit) {
 // Concurrency for the price-update PUTs. Sequential updates made a full run ~16 min (Arsenal events
 // have 484 listings each); running them in parallel brings it back to a few minutes. Kept modest so
 // we don't hammer the Hello Seller API into 429s.
-const UPDATE_CONCURRENCY = 10;
+const UPDATE_CONCURRENCY = 8;
+// Cap price updates per run so a big one-time re-pricing (e.g. the markup change dropping ~25k
+// listings ~13%) doesn't blast Hello's Cloudflare rate limit into a 429 storm. Already-correct
+// listings are skipped each run (micro-change guard), so the backlog drains over ~N cron cycles.
+// Once prices are settled, normal runs are far below this cap and unaffected.
+const MAX_UPDATES_PER_RUN = 2500;
 
 async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
     // Phase 1: compute every needed price change (fast, no network).
@@ -405,11 +410,16 @@ async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
         const jobs = collectPricingJobsForPerformance(perf, minimumPrices, usdToGbp);
         for (const j of jobs) allJobs.push(j);
     }
-    // Phase 2: apply them all in parallel.
-    console.log(`🧮 ${allJobs.length} price updates to apply (concurrency ${UPDATE_CONCURRENCY})`);
+    // Phase 2: apply, capped per run to stay under the rate limit.
+    const batch = allJobs.slice(0, MAX_UPDATES_PER_RUN);
+    if (batch.length < allJobs.length) {
+        console.log(`🧮 ${allJobs.length} updates needed — applying ${batch.length} this run (rate-limit cap), rest next cycle`);
+    } else {
+        console.log(`🧮 ${batch.length} price updates to apply (concurrency ${UPDATE_CONCURRENCY})`);
+    }
     const t0 = Date.now();
-    await runPool(allJobs, (j) => updateListingPrice(j.listing, j.price), UPDATE_CONCURRENCY);
-    console.log(`✅ applied ${allJobs.length} price updates in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    await runPool(batch, (j) => updateListingPrice(j.listing, j.price), UPDATE_CONCURRENCY);
+    console.log(`✅ applied ${batch.length} price updates in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
 function getCheapestCompetitorPrice(perf, myListing) {
