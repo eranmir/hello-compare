@@ -326,17 +326,15 @@ function collectPricingJobsForPerformance(perf, minimumPrices, usdToGbp) {
         let target = null;
         if (d.suggestedPrice) {
             if (hasSection(myListing)) {
+                // Section listings undercut their SECTION competitor directly (section-to-section,
+                // regardless of category). The old `sameAsCategory` gate (skip when the section's
+                // cheapest equalled the category's cheapest) left listings — especially 4-seated,
+                // whose competitors are sparse — frozen at the high start price. Removed.
                 const secCheapest = getCheapestCompetitorPrice(perf, myListing);
                 if (secCheapest != null && Number.isFinite(secCheapest)) {
-                    const catCheapest = getCheapestInCategoryIgnoringSection(perf, myListing);
-                    const sameAsCategory =
-                        catCheapest != null && Number.isFinite(catCheapest) &&
-                        Math.abs(secCheapest - catCheapest) < 0.01;
-                    if (!sameAsCategory) {
-                        let secNew = secCheapest - SECTION_UNDERCUT;
-                        if (secNew <= 0) secNew = secCheapest;
-                        target = Number(secNew.toFixed(2));
-                    }
+                    let secNew = secCheapest - SECTION_UNDERCUT;
+                    if (secNew <= 0) secNew = secCheapest;
+                    target = Number(secNew.toFixed(2));
                 }
             } else {
                 target = d.suggestedPrice;
