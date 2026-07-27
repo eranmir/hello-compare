@@ -399,7 +399,9 @@ const UPDATE_CONCURRENCY = 8;
 // listings ~13%) doesn't blast Hello's Cloudflare rate limit into a 429 storm. Already-correct
 // listings are skipped each run (micro-change guard), so the backlog drains over ~N cron cycles.
 // Once prices are settled, normal runs are far below this cap and unaffected.
-const MAX_UPDATES_PER_RUN = 2500;
+// ~700/run × the 4-min cron drains a big one-time re-pricing (~25k listings) over ~2.5 hours without
+// tripping Hello's per-IP Cloudflare limit. Steady-state runs are well under this, so it's a no-op then.
+const MAX_UPDATES_PER_RUN = 700;
 
 async function runPricingBot(listingsMap, minimumPrices, usdToGbp) {
     // Phase 1: compute every needed price change (fast, no network).
